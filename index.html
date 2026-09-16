@@ -1248,6 +1248,11 @@
         .ws-row-text { min-width: 0; flex: 1 1 auto; }
         .ws-row-title { font-size: 0.85rem; font-weight: 800; color: var(--dark); }
         .ws-row-sub { font-size: 0.7rem; color: var(--grey); margin-top: 2px; line-height: 1.4; }
+        /* The global `button` rule sets width:100% and margin-top:5px, which — since these
+           buttons only set `flex` inline, not `width` — made the "Change/Set" button stretch
+           to the row's full width and drop down onto the text next to it. Force it back to a
+           natural, inline-sized pill that sits beside the label instead of overlapping it. */
+        .ws-row button { width: auto; flex: 0 0 auto; margin-top: 0; white-space: nowrap; }
 
         .upin-input-group { margin-bottom: 14px; }
         .upin-field {
@@ -2669,7 +2674,7 @@
             <p id="wg-desc" style="font-size:0.78rem; color:var(--grey); margin:4px 0 0; line-height:1.5;"></p>
         </div>
         <div id="wg-bio-section" style="display:none;">
-            <button type="button" id="wg-bio-btn" class="wg-bio-btn" onclick="wgAttemptBiometric()">👆 Unlock with Fingerprint / Face</button>
+            <button type="button" id="wg-bio-btn" class="wg-bio-btn" onclick="wgAttemptBiometric()">🫆 Unlock with Fingerprint / Face</button>
             <div class="wg-divider">or</div>
             <div class="wg-upin-instead-link" id="wg-upin-toggle-link" onclick="wgShowUpinInstead()">Use U-PIN instead</div>
             <div id="wg-error-bio" class="error-msg" style="display:none; text-align:center; margin-top:10px;"></div>
@@ -4860,7 +4865,7 @@
             sec.biometricCredentialId = wsBufToB64u(cred.rawId);
             saveToLocal();
             renderWalletSecurityModal();
-            alert('👆 Biometric unlock enabled. You can now open the wallet and confirm payments with your fingerprint / face.');
+            alert('🫆 Biometric unlock enabled. You can now open the wallet and confirm payments with your fingerprint / face.');
         }).catch(() => {
             alert('Could not set up biometric unlock — it may have been cancelled, or this device has no fingerprint/face set up. You can keep using your U-PIN.');
         });
@@ -4901,7 +4906,7 @@
                 '<button class="wallet-act-btn act-primary" style="flex:0 0 auto; padding:9px 14px;" onclick="openUpinSetupModal()">' + (sec.upinHash ? '✏️ Change' : '➕ Set') + '</button>' +
             '</div>' +
             '<div class="ws-row">' +
-                '<div class="ws-row-text"><div class="ws-row-title">👆 Biometric Unlock</div><div class="ws-row-sub">' +
+                '<div class="ws-row-text"><div class="ws-row-title">🫆 Biometric Unlock</div><div class="ws-row-sub">' +
                     (!bioSupported ? 'Not supported on this device/browser' : (sec.biometricEnabled ? 'Enabled — fingerprint / face can open the wallet & confirm payments' : 'Off — only U-PIN will be used')) +
                 '</div></div>' +
                 '<label class="wl-toggle" style="flex:0 0 auto;">' +
@@ -4934,7 +4939,7 @@
         document.getElementById('wg-upin-section').style.display = showBio ? 'none' : 'block';
         document.getElementById('wg-upin-toggle-link').style.display = showBio ? 'block' : 'none';
         const bioBtn = document.getElementById('wg-bio-btn');
-        if (bioBtn) { bioBtn.disabled = false; bioBtn.innerText = '👆 Unlock with Fingerprint / Face'; }
+        if (bioBtn) { bioBtn.disabled = false; bioBtn.innerText = '🫆 Unlock with Fingerprint / Face'; }
         ['wg-upin'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         document.getElementById('wg-error').style.display = 'none';
         const bioErr = document.getElementById('wg-error-bio'); if (bioErr) bioErr.style.display = 'none';
@@ -4961,7 +4966,7 @@
         const sec = wsGetSecurity();
         if (!wsBiometricSupported()) { wgError('Biometric unlock isn\'t supported here — please use your U-PIN.'); wgShowUpinInstead(); return; }
         const btn = document.getElementById('wg-bio-btn');
-        if (btn) { btn.disabled = true; btn.innerText = '👆 Checking…'; }
+        if (btn) { btn.disabled = true; btn.innerText = '🫆 Checking…'; }
         const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
         navigator.credentials.get({
             publicKey: {
@@ -4975,7 +4980,7 @@
             closeWalletGateModal();
             if (cb) cb();
         }).catch(() => {
-            if (btn) { btn.disabled = false; btn.innerText = '👆 Unlock with Fingerprint / Face'; }
+            if (btn) { btn.disabled = false; btn.innerText = '🫆 Unlock with Fingerprint / Face'; }
             wgError('Biometric verification failed or was cancelled. Try again, or use your U-PIN below.');
         });
     }
@@ -15284,7 +15289,11 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
     let lfClaimAllClaimants = [];
     function markLFClaimed(id) {
         const item = lostFoundItems.find(i => i.id === id); if (!item) return;
-        const claimants = tickets.filter(t => t.category === 'Lost & Found Claim' && t.itemId === id);
+        // Only students whose claim ticket is still open/active are real contenders for this
+        // item. If a student has cancelled/closed their own ticket (e.g. via "Close / Cancel
+        // This Ticket" on their side), they must drop out of this list immediately — otherwise
+        // the Admin could still end up awarding the item to someone who withdrew their claim.
+        const claimants = tickets.filter(t => t.category === 'Lost & Found Claim' && t.itemId === id && t.status !== 'Closed');
         if (!claimants.length) {
             if (!confirm('No claim requests found from any student for this item. Mark it as claimed anyway?')) return;
             item.status = 'claimed'; item.claimedBy = null;
