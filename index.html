@@ -1192,7 +1192,7 @@
             padding: 9px 2px !important; margin: 0 !important; border-radius: 0 !important;
             font-size: 0.66rem; font-weight: 800; color: var(--grey) !important; cursor: pointer;
             white-space: normal; word-break: break-word; line-height: 1.25; text-align: center;
-            box-sizing: border-box; overflow-wrap: anywhere;
+            box-sizing: border-box; overflow-wrap: anywhere; position: relative;
         }
         .wallet-history-tab-btn:hover, .wallet-history-tab-btn:focus, .wallet-history-tab-btn:active {
             background: transparent !important; background-color: transparent !important;
@@ -2606,7 +2606,7 @@
 
             <div class="wallet-history-tabs" style="display:flex; gap:6px; margin:14px 0 12px; border-bottom:1px solid var(--border);">
                 <button type="button" class="wallet-history-tab-btn active" id="admin-wallet-htab-txns" onclick="switchAdminWalletHistoryTab('txns')">📜 Transaction History</button>
-                <button type="button" class="wallet-history-tab-btn" id="admin-wallet-htab-charges" onclick="switchAdminWalletHistoryTab('charges')">🧾 Past Charge Requests</button>
+                <button type="button" class="wallet-history-tab-btn" id="admin-wallet-htab-charges" onclick="switchAdminWalletHistoryTab('charges')">🧾 Past Charge Requests<span class="admin-menu-notif-dot" id="admin-wallet-charges-tab-notif-dot" style="display:none;"></span></button>
                 <button type="button" class="wallet-history-tab-btn" id="admin-wallet-htab-lock" onclick="switchAdminWalletHistoryTab('lock')">🔒 Activate/Deactivate/Closure/eKYC Log</button>
             </div>
 
@@ -9302,7 +9302,11 @@
             return;
         }
         requireWalletUnlock({ title: '🔐 Unlock Wallet', desc: 'Verify it\'s you before opening the Admin Wallet.' }, () => {
-            switchAdminWalletHistoryTab('txns');
+            // If a Super Admin renewal charge is waiting for a decision, jump straight to that
+            // tab instead of always defaulting to Transaction History — otherwise the request
+            // sits unnoticed behind a tab the Admin has no particular reason to click on.
+            const hasPendingCharge = ((wallet.chargeRequests || []).some(r => r.status === 'Pending'));
+            switchAdminWalletHistoryTab(hasPendingCharge ? 'charges' : 'txns');
             renderAdminWalletModal();
             document.getElementById('admin-wallet-modal').classList.add('modal-open');
         });
@@ -10811,6 +10815,12 @@ function openWalletEkycCooldownModal() {
         if (!host || !wallet) return;
         const reqs = (wallet.chargeRequests || []).slice().reverse();
         const pending = reqs.find(r => r.status === 'Pending');
+        // Light up a dot right on the "Past Charge Requests" tab itself — without this, a new
+        // request from the Super Admin sits invisibly under a tab that isn't even selected by
+        // default (the wallet modal opens on Transaction History), so the Admin has no way to
+        // know one is waiting unless they happen to click over and check.
+        const tabDot = document.getElementById('admin-wallet-charges-tab-notif-dot');
+        if (tabDot) tabDot.style.display = pending ? 'inline-block' : 'none';
         let html = '';
         if (pending) {
             html += '<div class="wallet-charge-pending-card">' +
