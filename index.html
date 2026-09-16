@@ -1236,6 +1236,36 @@
         .wallet-history-empty { text-align: center; padding: 26px 14px; color: var(--grey); font-size: 0.8rem; background: #f8fafc; border: 1px dashed var(--border); border-radius: 14px; }
         /* ===== END ADMIN WALLET REDESIGN ===== */
 
+        /* ===== WALLET SECURITY: U-PIN + BIOMETRIC ===== */
+        .ws-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 12px 0; border-bottom: 1px solid #eef2f7;
+        }
+        .ws-row:last-of-type { border-bottom: none; }
+        .ws-row-text { min-width: 0; flex: 1 1 auto; }
+        .ws-row-title { font-size: 0.85rem; font-weight: 800; color: var(--dark); }
+        .ws-row-sub { font-size: 0.7rem; color: var(--grey); margin-top: 2px; line-height: 1.4; }
+
+        .upin-input-group { margin-bottom: 14px; }
+        .upin-field {
+            width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 10px;
+            border: 1.5px solid var(--border); font-size: 1.15rem; letter-spacing: 0.5em;
+            text-align: center; font-family: 'Courier New', monospace; font-weight: 800;
+        }
+        .upin-field:focus { outline: none; border-color: var(--primary); }
+
+        #wallet-gate-modal .modal-content, #wallet-upin-setup-modal .modal-content, #wallet-security-modal .modal-content {
+            max-width: 380px; text-align: left;
+        }
+        .wg-bio-btn {
+            width: 100%; padding: 14px; border-radius: 14px; border: none; background: linear-gradient(135deg,#4f46e5,#7c3aed);
+            color: #fff; font-weight: 800; font-size: 0.92rem; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .wg-bio-btn:disabled { opacity: 0.6; }
+        .wg-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--grey); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+        .wg-divider::before, .wg-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .wg-upin-instead-link { text-align: center; font-size: 0.78rem; font-weight: 800; color: var(--primary); cursor: pointer; margin-top: 14px; text-decoration: underline; }
+
         /* ===== ID CARD PREVIEW MODAL ===== */
         #idcard-preview-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -1676,6 +1706,34 @@
             z-index:5000; display:none; flex-direction:column; align-items:center; justify-content:center;
         }
 
+        /* ===== LOST & FOUND: CLAIMANT SELECT — SEARCH + ALIGNMENT FIX ===== */
+        .lf-claim-search-wrap { position:relative; }
+        .lf-claim-search-ic {
+            position:absolute; left:12px; top:50%; transform:translateY(-50%);
+            font-size:0.85rem; color:var(--grey); pointer-events:none;
+        }
+        .lf-claim-search-input {
+            width:100%; box-sizing:border-box; padding:11px 12px 11px 34px;
+            border:1.5px solid var(--border); border-radius:10px; font-size:0.82rem;
+            font-family:'Nunito',sans-serif; background:#fff;
+        }
+        .lf-claim-search-input:focus { outline:none; border-color:var(--primary); }
+        .lf-claim-search-empty {
+            text-align:center; font-size:0.78rem; color:var(--grey); padding:16px 8px;
+            background:#f8fafc; border:1px dashed var(--border); border-radius:10px; margin-top:10px;
+        }
+        .lf-claimant-option {
+            display:flex; align-items:flex-start; gap:8px; padding:10px; border:1.5px solid var(--border);
+            border-radius:10px; margin-bottom:8px; cursor:pointer; box-sizing:border-box; width:100%;
+            max-width:100%; overflow:hidden;
+        }
+        .lf-claimant-option input[type="radio"] { flex-shrink:0; margin-top:3px; }
+        .lf-claimant-option-info { min-width:0; flex:1 1 auto; overflow:hidden; }
+        .lf-claimant-option-info strong,
+        .lf-claimant-option-info div {
+            display:block; max-width:100%; overflow-wrap:anywhere; word-break:break-word; white-space:normal;
+        }
+
         /* ===== NOTIFICATIONS ===== */
         .notif-card {
             background:#fff; border-left:5px solid var(--primary); border-radius:14px; padding:14px 16px;
@@ -1885,13 +1943,18 @@
 
 <!-- ===== LOST & FOUND CLAIMANT SELECT MODAL ===== -->
 <div id="lf-claim-select-modal" class="modal">
-    <div class="modal-content" style="max-width:420px; text-align:left; max-height:85vh; overflow-y:auto;">
+    <div class="modal-content" style="max-width:420px; text-align:left; max-height:85vh; overflow-y:auto; overflow-x:hidden; box-sizing:border-box;">
         <div style="text-align:center; margin-bottom:10px;">
             <div style="font-size:2.2rem;">✅</div>
             <h3 style="margin:6px 0 0;">Select Claiming Student</h3>
             <p style="font-size:0.78rem; color:var(--grey); margin:4px 0 0;">Choose the student who this item should be marked as claimed by.</p>
         </div>
+        <div class="lf-claim-search-wrap">
+            <span class="lf-claim-search-ic">🔍</span>
+            <input type="text" id="lf-claim-search-input" class="lf-claim-search-input" placeholder="Search by name or registration number…" oninput="renderLFClaimList(this.value)" autocomplete="off">
+        </div>
         <div id="lf-claim-select-list" style="margin-top:10px;"></div>
+        <div id="lf-claim-search-empty" class="lf-claim-search-empty" style="display:none;">No student matches this search.</div>
         <div class="lf-btn-row" style="margin-top:10px;">
             <button onclick="closeLFClaimSelectModal()" style="background:var(--grey);">Cancel</button>
             <button onclick="confirmLFClaimSelection()" style="background:#16a34a;">✅ Confirm Claim</button>
@@ -2544,6 +2607,76 @@
             <div id="admin-wallet-htab-panel-lock" class="wallet-history-tab-panel" style="display:none;">
                 <div id="admin-wallet-ekyc-sheet-info" style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:9px 12px; margin-bottom:10px; font-size:0.74rem; color:var(--grey);"></div>
                 <div id="admin-wallet-lock-history"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== WALLET SECURITY SETTINGS MODAL (Change U-PIN + Biometric toggle) ===== -->
+<div id="wallet-security-modal" class="modal">
+    <div class="modal-content">
+        <div style="text-align:center; margin-bottom:6px;">
+            <div style="font-size:2.2rem;">🔐</div>
+            <h3 style="margin:6px 0 0;">Wallet Security</h3>
+            <p style="font-size:0.78rem; color:var(--grey); margin:4px 0 0;">Manage your U-PIN and biometric unlock.</p>
+        </div>
+        <div id="wallet-security-body" style="margin-top:8px;"></div>
+        <button onclick="closeWalletSecurityModal()" style="background:var(--grey); margin-top:16px;">Close</button>
+    </div>
+</div>
+
+<!-- ===== WALLET U-PIN SET / CHANGE MODAL ===== -->
+<div id="wallet-upin-setup-modal" class="modal">
+    <div class="modal-content">
+        <div style="text-align:center; margin-bottom:10px;">
+            <div style="font-size:2.2rem;">🔢</div>
+            <h3 id="wus-title" style="margin:6px 0 0;">Set Your Wallet U-PIN</h3>
+            <p id="wus-desc" style="font-size:0.78rem; color:var(--grey); margin:4px 0 0; line-height:1.5;"></p>
+        </div>
+        <div id="wus-prev-row" class="upin-input-group" style="display:none;">
+            <label>Previous U-PIN</label>
+            <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="wus-prev" class="upin-field" placeholder="••••" oninput="document.getElementById('wus-error').style.display='none'; this.value=this.value.replace(/\D/g,'').slice(0,4);">
+        </div>
+        <div class="upin-input-group">
+            <label>New U-PIN</label>
+            <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="wus-new" class="upin-field" placeholder="••••" oninput="document.getElementById('wus-error').style.display='none'; this.value=this.value.replace(/\D/g,'').slice(0,4);">
+        </div>
+        <div class="upin-input-group" style="margin-bottom:6px;">
+            <label>Confirm New U-PIN</label>
+            <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="wus-confirm" class="upin-field" placeholder="••••" oninput="document.getElementById('wus-error').style.display='none'; this.value=this.value.replace(/\D/g,'').slice(0,4);">
+        </div>
+        <div class="error-msg" id="wus-error" style="display:none; text-align:center;"></div>
+        <div class="lf-btn-row" style="margin-top:14px;">
+            <button onclick="closeUpinSetupModal()" style="background:var(--grey);">Cancel</button>
+            <button onclick="submitUpinSetup()" style="background:#16a34a;">✅ Save U-PIN</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== WALLET UNLOCK / PAYMENT CONFIRM GATE (U-PIN or Biometric) ===== -->
+<div id="wallet-gate-modal" class="modal" style="z-index:9700;">
+    <div class="modal-content">
+        <div style="text-align:center; margin-bottom:10px;">
+            <div style="font-size:2.2rem;">🔐</div>
+            <h3 id="wg-title" style="margin:6px 0 0;">Wallet Verification</h3>
+            <p id="wg-desc" style="font-size:0.78rem; color:var(--grey); margin:4px 0 0; line-height:1.5;"></p>
+        </div>
+        <div id="wg-bio-section" style="display:none;">
+            <button type="button" id="wg-bio-btn" class="wg-bio-btn" onclick="wgAttemptBiometric()">👆 Unlock with Fingerprint / Face</button>
+            <div class="wg-divider">or</div>
+            <div class="wg-upin-instead-link" id="wg-upin-toggle-link" onclick="wgShowUpinInstead()">Use U-PIN instead</div>
+            <div id="wg-error-bio" class="error-msg" style="display:none; text-align:center; margin-top:10px;"></div>
+            <button type="button" onclick="closeWalletGateModal()" style="background:var(--grey); width:100%; margin-top:14px;">Cancel</button>
+        </div>
+        <div id="wg-upin-section" style="display:none;">
+            <div class="upin-input-group" style="margin-bottom:6px;">
+                <label>Enter U-PIN</label>
+                <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="wg-upin" class="upin-field" placeholder="••••" oninput="document.getElementById('wg-error').style.display='none'; this.value=this.value.replace(/\D/g,'').slice(0,4);" onkeydown="if(event.key==='Enter') wgSubmitUpin();">
+            </div>
+            <div class="error-msg" id="wg-error" style="display:none; text-align:center;"></div>
+            <div class="lf-btn-row" style="margin-top:10px;">
+                <button onclick="closeWalletGateModal()" style="background:var(--grey);">Cancel</button>
+                <button onclick="wgSubmitUpin()" style="background:#16a34a;">✅ Confirm</button>
             </div>
         </div>
     </div>
@@ -4608,6 +4741,244 @@
         const customPasswords = JSON.parse(localStorage.getItem('Samarthak_AdminPasswords') || '{}');
         const effectivePass = customPasswords[id] || validAdmin[1];
         return effectivePass === pass;
+    }
+
+    // ===================================================================================
+    // ===== WALLET SECURITY: U-PIN + BIOMETRIC UNLOCK ==================================
+    // Every wallet money-movement (opening the wallet, paying a student's registration/fee
+    // from the wallet, approving a Super Admin renewal/maintenance charge) is gated behind
+    // this. The Admin sets a 4-digit U-PIN once; after that, every gated action asks for it
+    // — unless Biometric unlock is enabled on this device, in which case fingerprint/face is
+    // offered as the quick way in, with "use U-PIN instead" always available underneath.
+    // ===================================================================================
+    function wsGetSecurity() {
+        if (!config.walletSecurity || typeof config.walletSecurity !== 'object') {
+            config.walletSecurity = { upinHash: null, upinSetAt: null, biometricEnabled: false, biometricCredentialId: null };
+        }
+        return config.walletSecurity;
+    }
+    // Not real cryptography — this app already keeps Admin passwords in plain text locally,
+    // so this hash exists only so the raw U-PIN itself isn't sitting in storage verbatim.
+    function wsHashUpin(pin) {
+        let h = 5381;
+        const s = 'smrthk_wallet_upin::' + String(pin);
+        for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+        return h.toString(16);
+    }
+    function wsHasUpin() { return !!wsGetSecurity().upinHash; }
+    function wsVerifyUpin(pin) { return wsGetSecurity().upinHash === wsHashUpin(pin); }
+    function wsSaveUpin(pin) {
+        const sec = wsGetSecurity();
+        sec.upinHash = wsHashUpin(pin);
+        sec.upinSetAt = new Date().toISOString();
+        saveToLocal();
+    }
+
+    // ----- U-PIN SET / CHANGE MODAL -----
+    let _wsUpinSetupMode = 'set';   // 'set' | 'change'
+    let _wsUpinSetupOnDone = null;
+    function openUpinSetupModal(opts) {
+        opts = opts || {};
+        _wsUpinSetupMode = wsHasUpin() ? 'change' : 'set';
+        _wsUpinSetupOnDone = typeof opts.onDone === 'function' ? opts.onDone : null;
+        document.getElementById('wus-title').innerText = _wsUpinSetupMode === 'change' ? 'Change Wallet U-PIN' : 'Set Your Wallet U-PIN';
+        document.getElementById('wus-desc').innerText = _wsUpinSetupMode === 'change'
+            ? 'Enter your previous U-PIN, then choose a new one.'
+            : 'This 4-digit U-PIN will be required every time the wallet is opened or used for a payment.';
+        document.getElementById('wus-prev-row').style.display = _wsUpinSetupMode === 'change' ? 'block' : 'none';
+        ['wus-prev', 'wus-new', 'wus-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        document.getElementById('wus-error').style.display = 'none';
+        document.getElementById('wallet-upin-setup-modal').classList.add('modal-open');
+        setTimeout(() => { document.getElementById(_wsUpinSetupMode === 'change' ? 'wus-prev' : 'wus-new').focus(); }, 60);
+    }
+    function closeUpinSetupModal(skipDoneCallback) {
+        document.getElementById('wallet-upin-setup-modal').classList.remove('modal-open');
+        if (!skipDoneCallback) { _wsUpinSetupOnDone = null; }
+    }
+    function wsUpinSetupError(msg) {
+        const e = document.getElementById('wus-error');
+        e.innerText = msg; e.style.display = 'block';
+    }
+    function submitUpinSetup() {
+        const prev = document.getElementById('wus-prev').value.trim();
+        const next = document.getElementById('wus-new').value.trim();
+        const confirmVal = document.getElementById('wus-confirm').value.trim();
+        if (_wsUpinSetupMode === 'change') {
+            if (!/^\d{4}$/.test(prev)) { wsUpinSetupError('Enter your current 4-digit U-PIN.'); return; }
+            if (!wsVerifyUpin(prev)) { wsUpinSetupError('Previous U-PIN is incorrect.'); return; }
+        }
+        if (!/^\d{4}$/.test(next)) { wsUpinSetupError('New U-PIN must be exactly 4 digits.'); return; }
+        if (_wsUpinSetupMode === 'change' && next === prev) { wsUpinSetupError('New U-PIN must be different from the previous one.'); return; }
+        if (next !== confirmVal) { wsUpinSetupError('New U-PIN and Confirm U-PIN do not match.'); return; }
+        wsSaveUpin(next);
+        const cb = _wsUpinSetupOnDone;
+        closeUpinSetupModal(true);
+        _wsUpinSetupOnDone = null;
+        alert(_wsUpinSetupMode === 'change' ? '✅ Wallet U-PIN changed successfully.' : '✅ Wallet U-PIN set successfully.');
+        if (cb) cb();
+    }
+
+    // ----- BIOMETRIC (WebAuthn platform authenticator) -----
+    function wsBiometricSupported() {
+        return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create && navigator.credentials.get);
+    }
+    function wsB64uToBuf(b64u) {
+        const b64 = b64u.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b64u.length + 3) % 4);
+        const bin = atob(b64); const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        return buf;
+    }
+    function wsBufToB64u(buf) {
+        let bin = ''; const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    function wsEnableBiometric() {
+        if (!wsHasUpin()) { alert('Please set your Wallet U-PIN first before enabling biometric unlock.'); return; }
+        if (!wsBiometricSupported()) { alert('Biometric unlock isn\'t supported on this device or browser. You can keep using your U-PIN.'); return; }
+        const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
+        const userId = new Uint8Array(16); crypto.getRandomValues(userId);
+        navigator.credentials.create({
+            publicKey: {
+                challenge,
+                rp: { name: 'Samarthak Wallet' },
+                user: { id: userId, name: (_activeAdminId || 'admin') + '-wallet', displayName: 'Wallet Owner' },
+                pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+                authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+                timeout: 60000
+            }
+        }).then(cred => {
+            const sec = wsGetSecurity();
+            sec.biometricEnabled = true;
+            sec.biometricCredentialId = wsBufToB64u(cred.rawId);
+            saveToLocal();
+            renderWalletSecurityModal();
+            alert('👆 Biometric unlock enabled. You can now open the wallet and confirm payments with your fingerprint / face.');
+        }).catch(() => {
+            alert('Could not set up biometric unlock — it may have been cancelled, or this device has no fingerprint/face set up. You can keep using your U-PIN.');
+        });
+    }
+    function wsDisableBiometric() {
+        tmOpenInputModal({
+            icon: '🔐', title: 'Disable Biometric Unlock', type: 'password', placeholder: 'Enter U-PIN to confirm',
+            desc: 'Enter your Wallet U-PIN to turn off biometric unlock. You\'ll then need your U-PIN for every wallet action.',
+            confirmLabel: 'Disable', confirmColor: '#dc2626',
+            validator: v => !wsVerifyUpin(v) ? 'Incorrect U-PIN.' : null,
+            onConfirm: () => {
+                const sec = wsGetSecurity();
+                sec.biometricEnabled = false; sec.biometricCredentialId = null;
+                saveToLocal();
+                renderWalletSecurityModal();
+                alert('Biometric unlock has been turned off.');
+            }
+        });
+    }
+
+    // ----- WALLET SECURITY SETTINGS MODAL (Change U-PIN + Biometric toggle) -----
+    function openWalletSecurityModal() {
+        renderWalletSecurityModal();
+        document.getElementById('wallet-security-modal').classList.add('modal-open');
+    }
+    function closeWalletSecurityModal() {
+        document.getElementById('wallet-security-modal').classList.remove('modal-open');
+    }
+    function renderWalletSecurityModal() {
+        const sec = wsGetSecurity();
+        const host = document.getElementById('wallet-security-body');
+        if (!host) return;
+        const bioSupported = wsBiometricSupported();
+        host.innerHTML =
+            '<div class="ws-row">' +
+                '<div class="ws-row-text"><div class="ws-row-title">🔢 Wallet U-PIN</div><div class="ws-row-sub">' +
+                    (sec.upinHash ? 'Set on ' + fmtWalletDate(sec.upinSetAt) : 'Not set yet') + '</div></div>' +
+                '<button class="wallet-act-btn act-primary" style="flex:0 0 auto; padding:9px 14px;" onclick="openUpinSetupModal()">' + (sec.upinHash ? '✏️ Change' : '➕ Set') + '</button>' +
+            '</div>' +
+            '<div class="ws-row">' +
+                '<div class="ws-row-text"><div class="ws-row-title">👆 Biometric Unlock</div><div class="ws-row-sub">' +
+                    (!bioSupported ? 'Not supported on this device/browser' : (sec.biometricEnabled ? 'Enabled — fingerprint / face can open the wallet & confirm payments' : 'Off — only U-PIN will be used')) +
+                '</div></div>' +
+                '<label class="wl-toggle" style="flex:0 0 auto;">' +
+                    '<input type="checkbox" ' + (sec.biometricEnabled ? 'checked' : '') + ' ' + (!bioSupported ? 'disabled' : '') + ' onchange="this.checked ? wsEnableBiometric() : wsDisableBiometric(); this.checked = ' + (sec.biometricEnabled ? 'true' : 'false') + ';">' +
+                    '<span class="wl-toggle-slider"></span>' +
+                '</label>' +
+            '</div>' +
+            '<p style="font-size:0.68rem; color:var(--grey); margin:12px 2px 0; line-height:1.5;">🔒 Your U-PIN is required to open the wallet and to confirm any payment made from it (student registration, fee/renewal charges, etc). Keep it private — do not share it with anyone.</p>';
+    }
+
+    // ----- SHARED UNLOCK/CONFIRM GATE — used before opening the wallet AND before any wallet
+    // payment goes through. Shows Biometric (if enabled) with a "use U-PIN instead" fallback,
+    // or just the U-PIN field directly if biometric isn't enabled. -----
+    let _wsGateOnSuccess = null;
+    function requireWalletUnlock(opts, onSuccess) {
+        opts = opts || {};
+        if (!wallet || wallet.status !== 'closed') refreshWalletFromStorage();
+        if (!wsHasUpin()) {
+            // First-ever wallet use on this library: the Admin must set a U-PIN before
+            // anything wallet-related — open, pay, approve a charge — can proceed.
+            openUpinSetupModal({ onDone: () => requireWalletUnlock(opts, onSuccess) });
+            return;
+        }
+        _wsGateOnSuccess = typeof onSuccess === 'function' ? onSuccess : null;
+        document.getElementById('wg-title').innerText = opts.title || 'Wallet Verification';
+        document.getElementById('wg-desc').innerText = opts.desc || 'Enter your U-PIN to continue.';
+        const sec = wsGetSecurity();
+        const showBio = sec.biometricEnabled && sec.biometricCredentialId && wsBiometricSupported();
+        document.getElementById('wg-bio-section').style.display = showBio ? 'block' : 'none';
+        document.getElementById('wg-upin-section').style.display = showBio ? 'none' : 'block';
+        document.getElementById('wg-upin-toggle-link').style.display = showBio ? 'block' : 'none';
+        const bioBtn = document.getElementById('wg-bio-btn');
+        if (bioBtn) { bioBtn.disabled = false; bioBtn.innerText = '👆 Unlock with Fingerprint / Face'; }
+        ['wg-upin'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        document.getElementById('wg-error').style.display = 'none';
+        const bioErr = document.getElementById('wg-error-bio'); if (bioErr) bioErr.style.display = 'none';
+        document.getElementById('wallet-gate-modal').classList.add('modal-open');
+        setTimeout(() => { if (!showBio) { const el = document.getElementById('wg-upin'); if (el) el.focus(); } }, 60);
+    }
+    function closeWalletGateModal() {
+        document.getElementById('wallet-gate-modal').classList.remove('modal-open');
+        _wsGateOnSuccess = null;
+    }
+    function wgShowUpinInstead() {
+        document.getElementById('wg-bio-section').style.display = 'none';
+        document.getElementById('wg-upin-section').style.display = 'block';
+        document.getElementById('wg-upin-toggle-link').style.display = 'none';
+        document.getElementById('wg-error').style.display = 'none';
+        setTimeout(() => { const el = document.getElementById('wg-upin'); if (el) el.focus(); }, 30);
+    }
+    function wgError(msg) {
+        const bioVisible = document.getElementById('wg-bio-section').style.display !== 'none';
+        const e = document.getElementById(bioVisible ? 'wg-error-bio' : 'wg-error');
+        e.innerText = msg; e.style.display = 'block';
+    }
+    function wgAttemptBiometric() {
+        const sec = wsGetSecurity();
+        if (!wsBiometricSupported()) { wgError('Biometric unlock isn\'t supported here — please use your U-PIN.'); wgShowUpinInstead(); return; }
+        const btn = document.getElementById('wg-bio-btn');
+        if (btn) { btn.disabled = true; btn.innerText = '👆 Checking…'; }
+        const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
+        navigator.credentials.get({
+            publicKey: {
+                challenge,
+                allowCredentials: [{ id: wsB64uToBuf(sec.biometricCredentialId), type: 'public-key' }],
+                userVerification: 'required',
+                timeout: 60000
+            }
+        }).then(() => {
+            const cb = _wsGateOnSuccess;
+            closeWalletGateModal();
+            if (cb) cb();
+        }).catch(() => {
+            if (btn) { btn.disabled = false; btn.innerText = '👆 Unlock with Fingerprint / Face'; }
+            wgError('Biometric verification failed or was cancelled. Try again, or use your U-PIN below.');
+        });
+    }
+    function wgSubmitUpin() {
+        const val = (document.getElementById('wg-upin').value || '').trim();
+        if (!/^\d{4}$/.test(val)) { wgError('Enter your 4-digit U-PIN.'); return; }
+        if (!wsVerifyUpin(val)) { wgError('Incorrect U-PIN. Please try again.'); document.getElementById('wg-upin').value = ''; document.getElementById('wg-upin').focus(); return; }
+        const cb = _wsGateOnSuccess;
+        closeWalletGateModal();
+        if (cb) cb();
     }
 
     // Deactivate ⇄ Activate — either direction requires the Admin to re-enter their account
@@ -7626,45 +7997,54 @@
             }
         }
         if (err) return;
-        let existingFeeHistory = [], originalDate = new Date().toISOString();
-        let regNo = 'REG' + Math.floor(1000000000 + Math.random() * 9000000000).toString().slice(0,10);
-        // Wallet payments never take a manually-typed transaction ID — a unique 10-digit
-        // Transaction ID is generated automatically for the wallet ledger and reused here.
-        let walletTxnId = null;
-        if (method === "Wallet") walletTxnId = generateWalletTxnId();
-        let finalMode = method, finalApp = method==="Online" ? pApp : (method==="Wallet" ? "Wallet" : "N/A"), finalTxn = method==="Online" ? tId : (method==="Wallet" ? walletTxnId : "N/A");
-        if (editId) {
-            const old = students.find(x => x.id === editId);
-            if (old) { existingFeeHistory = old.feeHistory || []; originalDate = old.date; regNo = old.regNo; finalMode = old.mode; finalApp = old.payApp; finalTxn = old.txnId; }
+        // Everything from here on is the actual save — for a Wallet payment this only runs
+        // after the Admin has verified themselves with their U-PIN (or biometric).
+        const finishValidateAndBook = () => {
+            let existingFeeHistory = [], originalDate = new Date().toISOString();
+            let regNo = 'REG' + Math.floor(1000000000 + Math.random() * 9000000000).toString().slice(0,10);
+            // Wallet payments never take a manually-typed transaction ID — a unique 10-digit
+            // Transaction ID is generated automatically for the wallet ledger and reused here.
+            let walletTxnId = null;
+            if (method === "Wallet") walletTxnId = generateWalletTxnId();
+            let finalMode = method, finalApp = method==="Online" ? pApp : (method==="Wallet" ? "Wallet" : "N/A"), finalTxn = method==="Online" ? tId : (method==="Wallet" ? walletTxnId : "N/A");
+            if (editId) {
+                const old = students.find(x => x.id === editId);
+                if (old) { existingFeeHistory = old.feeHistory || []; originalDate = old.date; regNo = old.regNo; finalMode = old.mode; finalApp = old.payApp; finalTxn = old.txnId; }
+            } else {
+                const currentMonth = new Date().toISOString().slice(0,7);
+                existingFeeHistory = [{ month:currentMonth, entryDate:new Date().toISOString(), amount:sInfo.price, mode:method, payApp:method==="Online"?pApp:(method==="Wallet"?"Wallet":"Cash"), txnId:method==="Online"?tId:(method==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime:selectedSeat, shiftAtTime:sInfo.name }];
+            }
+            const studentName = document.getElementById('name').value;
+            const data = { id:editId||regNo, regNo, date:originalDate, name:studentName, fname:document.getElementById('fname').value, mobile:document.getElementById('mobile').value, email:document.getElementById('email').value, dob:document.getElementById('dob').value, shift:sid, shiftName:sInfo.name, mode:finalMode, payApp:finalApp, txnId:finalTxn, seat:selectedSeat, amount:sInfo.price, photo:photoData, feeHistory:existingFeeHistory };
+            if (editId) { const old = students.find(x => x.id === editId); db[old.shift] = db[old.shift].filter(n => n !== old.seat); students = students.filter(x => x.id !== editId); }
+            db[sid].push(selectedSeat); students.push(data);
+            // Deduct from the admin wallet only after everything above has succeeded, and record
+            // a full ledger entry: unique Transaction ID, amount, resulting balance, which student/
+            // seat/shift it was for, and when — so it's fully auditable from either portal.
+            if (method === "Wallet" && walletTxnId) {
+                wallet.balance = (wallet.balance || 0) - sInfo.price;
+                wallet.transactions = wallet.transactions || [];
+                wallet.transactions.push({
+                    id: walletTxnId, type: 'debit', amount: sInfo.price, balanceAfter: wallet.balance,
+                    date: new Date().toISOString(), note: 'Seat booking payment',
+                    by: (_loggedInAdminId || _activeAdminId || 'Admin'),
+                    studentRegNo: regNo, studentName: studentName, seat: selectedSeat, shiftName: sInfo.name
+                });
+            }
+            saveToLocal();
+            if (method === "Wallet" && walletTxnId) {
+                alert("Record Saved Successfully!\n\n💰 ₹" + sInfo.price + " deducted from Admin Wallet.\nTransaction ID: " + walletTxnId + "\nRemaining Wallet Balance: ₹" + wallet.balance);
+                refreshAllWalletDisplays();
+            } else {
+                alert("Record Saved Successfully!");
+            }
+            resetForm();
+        };
+        if (method === "Wallet") {
+            requireWalletUnlock({ title: '🔐 Confirm Payment', desc: 'Verify it\'s you to pay ₹' + sInfo.price + ' from the Wallet for this student\'s registration.' }, finishValidateAndBook);
         } else {
-            const currentMonth = new Date().toISOString().slice(0,7);
-            existingFeeHistory = [{ month:currentMonth, entryDate:new Date().toISOString(), amount:sInfo.price, mode:method, payApp:method==="Online"?pApp:(method==="Wallet"?"Wallet":"Cash"), txnId:method==="Online"?tId:(method==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime:selectedSeat, shiftAtTime:sInfo.name }];
+            finishValidateAndBook();
         }
-        const studentName = document.getElementById('name').value;
-        const data = { id:editId||regNo, regNo, date:originalDate, name:studentName, fname:document.getElementById('fname').value, mobile:document.getElementById('mobile').value, email:document.getElementById('email').value, dob:document.getElementById('dob').value, shift:sid, shiftName:sInfo.name, mode:finalMode, payApp:finalApp, txnId:finalTxn, seat:selectedSeat, amount:sInfo.price, photo:photoData, feeHistory:existingFeeHistory };
-        if (editId) { const old = students.find(x => x.id === editId); db[old.shift] = db[old.shift].filter(n => n !== old.seat); students = students.filter(x => x.id !== editId); }
-        db[sid].push(selectedSeat); students.push(data);
-        // Deduct from the admin wallet only after everything above has succeeded, and record
-        // a full ledger entry: unique Transaction ID, amount, resulting balance, which student/
-        // seat/shift it was for, and when — so it's fully auditable from either portal.
-        if (method === "Wallet" && walletTxnId) {
-            wallet.balance = (wallet.balance || 0) - sInfo.price;
-            wallet.transactions = wallet.transactions || [];
-            wallet.transactions.push({
-                id: walletTxnId, type: 'debit', amount: sInfo.price, balanceAfter: wallet.balance,
-                date: new Date().toISOString(), note: 'Seat booking payment',
-                by: (_loggedInAdminId || _activeAdminId || 'Admin'),
-                studentRegNo: regNo, studentName: studentName, seat: selectedSeat, shiftName: sInfo.name
-            });
-        }
-        saveToLocal();
-        if (method === "Wallet" && walletTxnId) {
-            alert("Record Saved Successfully!\n\n💰 ₹" + sInfo.price + " deducted from Admin Wallet.\nTransaction ID: " + walletTxnId + "\nRemaining Wallet Balance: ₹" + wallet.balance);
-            refreshAllWalletDisplays();
-        } else {
-            alert("Record Saved Successfully!");
-        }
-        resetForm();
     }
 
     // ===== DEMO REGISTRATION FEATURE =====
@@ -8909,9 +9289,11 @@
             openWalletSetupModal();
             return;
         }
-        switchAdminWalletHistoryTab('txns');
-        renderAdminWalletModal();
-        document.getElementById('admin-wallet-modal').classList.add('modal-open');
+        requireWalletUnlock({ title: '🔐 Unlock Wallet', desc: 'Verify it\'s you before opening the Admin Wallet.' }, () => {
+            switchAdminWalletHistoryTab('txns');
+            renderAdminWalletModal();
+            document.getElementById('admin-wallet-modal').classList.add('modal-open');
+        });
     }
     function closeAdminWalletModal() {
         document.getElementById('admin-wallet-modal').classList.remove('modal-open');
@@ -10405,6 +10787,11 @@ function openWalletEkycCooldownModal() {
                     '<button class="wallet-act-btn act-danger" onclick="walletRequestPermanentClose()"><span class="ic">🗑️</span>Permanent Close</button>' +
                 '</div>';
         }
+        // Wallet Security (U-PIN / Biometric) is manageable regardless of the wallet's
+        // lifecycle status — an Admin can still change their U-PIN even while it's
+        // deactivated, closing, etc.
+        host.insertAdjacentHTML('afterbegin',
+            '<button class="wallet-act-btn act-primary" style="width:100%; margin-bottom:10px;" onclick="openWalletSecurityModal()"><span class="ic">🔐</span>Wallet Security (U-PIN / Biometric)</button>');
     }
 
     function renderAdminWalletChargeRequests() {
@@ -10461,15 +10848,19 @@ function openWalletEkycCooldownModal() {
         const req = (wallet.chargeRequests || []).find(r => r.id === reqId && r.status === 'Pending');
         if (!req) return;
         if (!confirm('Accept this renewal charge? ₹' + req.amount + ' will be deducted from your wallet immediately (balance can go negative if insufficient).')) return;
-        const txnId = generateWalletTxnId();
-        wallet.balance = (wallet.balance || 0) - req.amount;
-        wallet.transactions = wallet.transactions || [];
-        wallet.transactions.push({ id: txnId, type: 'debit', chargeType: 'renewal', amount: req.amount, balanceAfter: wallet.balance, date: new Date().toISOString(), note: req.note || '', by: 'Super Admin', isSuperAdminCharge: true });
-        req.status = 'Approved'; req.decidedAt = new Date().toISOString();
-        persistWalletOnly();
-        refreshAllWalletDisplays();
-        if (typeof updateAdminMenuNotifDots === 'function') updateAdminMenuNotifDots();
-        alert('✅ ₹' + req.amount + ' deducted for subscription renewal.\nNew Balance: ₹' + wallet.balance);
+        // The actual deduction only happens after the Admin verifies with their U-PIN (or
+        // biometric) — the confirm() above is just the "are you sure", this is the payment gate.
+        requireWalletUnlock({ title: '🔐 Confirm Payment', desc: 'Verify it\'s you to approve this ₹' + req.amount + ' subscription renewal charge from the Wallet.' }, () => {
+            const txnId = generateWalletTxnId();
+            wallet.balance = (wallet.balance || 0) - req.amount;
+            wallet.transactions = wallet.transactions || [];
+            wallet.transactions.push({ id: txnId, type: 'debit', chargeType: 'renewal', amount: req.amount, balanceAfter: wallet.balance, date: new Date().toISOString(), note: req.note || '', by: 'Super Admin', isSuperAdminCharge: true });
+            req.status = 'Approved'; req.decidedAt = new Date().toISOString();
+            persistWalletOnly();
+            refreshAllWalletDisplays();
+            if (typeof updateAdminMenuNotifDots === 'function') updateAdminMenuNotifDots();
+            alert('✅ ₹' + req.amount + ' deducted for subscription renewal.\nNew Balance: ₹' + wallet.balance);
+        });
     }
     function rejectWalletChargeRequest(reqId) {
         if (!wallet) return;
@@ -11004,28 +11395,37 @@ function openWalletEkycCooldownModal() {
             }
         }
         if (err) return;
-        let walletTxnId = null;
-        if (mode === "Wallet" && editIndex === "") walletTxnId = generateWalletTxnId();
-        const feeData = { month:monthValue, entryDate:new Date().toISOString(), amount, mode, payApp:mode==="Online"?app:(mode==="Wallet"?"Wallet":"Cash"), txnId:mode==="Online"?txn:(mode==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime:s.seat, shiftAtTime:s.shiftName };
-        if (editIndex !== "") { s.feeHistory[editIndex] = feeData; resetFeeForm(); } else s.feeHistory.push(feeData);
-        if (mode === "Wallet" && walletTxnId) {
-            wallet.balance = (wallet.balance || 0) - parseInt(amount || 0);
-            wallet.transactions = wallet.transactions || [];
-            wallet.transactions.push({
-                id: walletTxnId, type: 'debit', amount: parseInt(amount || 0), balanceAfter: wallet.balance,
-                date: new Date().toISOString(), seat: s.seat, shiftName: s.shiftName, studentName: s.name, studentRegNo: s.regNo
-            });
-        }
-        document.getElementById('feeTxnId').value = ''; document.getElementById('feeOtherAppName').value = '';
-        saveToLocal(); alert(mode === "Wallet" && walletTxnId ? ("Fee record saved.\n\n💰 ₹" + amount + " deducted from Admin Wallet.\nTransaction ID: " + walletTxnId) : "Fee record saved."); renderFeeLogs(); renderHistory();
-        // Instantly refresh the wallet balance/ledger everywhere it's visible in this tab —
-        // cross-tab refresh (Super Admin / other Admin tabs) is already handled by the shared
-        // 'storage' event listener the moment saveToLocal() writes to localStorage.
-        if (mode === "Wallet" && walletTxnId) refreshAllWalletDisplays();
-        if (editIndex === "") {
-            const currentShiftObj = config.shifts.find(sh => sh.id === s.shift);
-            const currentPrice = currentShiftObj ? currentShiftObj.price : s.amount;
-            document.getElementById('feeAmount').value = currentPrice;
+        // Everything from here on is the actual save — for a Wallet payment this only runs
+        // after the Admin has verified themselves with their U-PIN (or biometric).
+        const finishSaveNewMonthlyFee = () => {
+            let walletTxnId = null;
+            if (mode === "Wallet" && editIndex === "") walletTxnId = generateWalletTxnId();
+            const feeData = { month:monthValue, entryDate:new Date().toISOString(), amount, mode, payApp:mode==="Online"?app:(mode==="Wallet"?"Wallet":"Cash"), txnId:mode==="Online"?txn:(mode==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime:s.seat, shiftAtTime:s.shiftName };
+            if (editIndex !== "") { s.feeHistory[editIndex] = feeData; resetFeeForm(); } else s.feeHistory.push(feeData);
+            if (mode === "Wallet" && walletTxnId) {
+                wallet.balance = (wallet.balance || 0) - parseInt(amount || 0);
+                wallet.transactions = wallet.transactions || [];
+                wallet.transactions.push({
+                    id: walletTxnId, type: 'debit', amount: parseInt(amount || 0), balanceAfter: wallet.balance,
+                    date: new Date().toISOString(), seat: s.seat, shiftName: s.shiftName, studentName: s.name, studentRegNo: s.regNo
+                });
+            }
+            document.getElementById('feeTxnId').value = ''; document.getElementById('feeOtherAppName').value = '';
+            saveToLocal(); alert(mode === "Wallet" && walletTxnId ? ("Fee record saved.\n\n💰 ₹" + amount + " deducted from Admin Wallet.\nTransaction ID: " + walletTxnId) : "Fee record saved."); renderFeeLogs(); renderHistory();
+            // Instantly refresh the wallet balance/ledger everywhere it's visible in this tab —
+            // cross-tab refresh (Super Admin / other Admin tabs) is already handled by the shared
+            // 'storage' event listener the moment saveToLocal() writes to localStorage.
+            if (mode === "Wallet" && walletTxnId) refreshAllWalletDisplays();
+            if (editIndex === "") {
+                const currentShiftObj = config.shifts.find(sh => sh.id === s.shift);
+                const currentPrice = currentShiftObj ? currentShiftObj.price : s.amount;
+                document.getElementById('feeAmount').value = currentPrice;
+            }
+        };
+        if (mode === "Wallet") {
+            requireWalletUnlock({ title: '🔐 Confirm Payment', desc: 'Verify it\'s you to pay ₹' + amount + ' from the Wallet for this fee entry.' }, finishSaveNewMonthlyFee);
+        } else {
+            finishSaveNewMonthlyFee();
         }
     }
 
@@ -14874,6 +15274,7 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
     }
 
     let lfClaimTargetItemId = null;
+    let lfClaimAllClaimants = [];
     function markLFClaimed(id) {
         const item = lostFoundItems.find(i => i.id === id); if (!item) return;
         const claimants = tickets.filter(t => t.category === 'Lost & Found Claim' && t.itemId === id);
@@ -14884,31 +15285,57 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
             return;
         }
         lfClaimTargetItemId = id;
-        const listEl = document.getElementById('lf-claim-select-list');
-        listEl.innerHTML = claimants.map((t, idx) => `
-            <label style="display:flex; align-items:flex-start; gap:8px; padding:10px; border:1.5px solid var(--border); border-radius:10px; margin-bottom:8px; cursor:pointer;">
-                <input type="radio" name="lf-claimant" value="${idx}" style="margin-top:3px;" ${idx===0?'checked':''}>
-                <div>
-                    <strong style="font-size:0.85rem;">${t.studentName}</strong>
-                    <div style="font-size:0.72rem; color:var(--grey);">Reg No: ${t.regNo}</div>
-                    <div style="font-size:0.7rem; color:#475569;">Ticket ID: ${t.id}</div>
-                </div>
-            </label>`).join('');
-        listEl.dataset.claimants = JSON.stringify(claimants.map(t => ({ name: t.studentName, regNo: t.regNo, ticketId: t.id })));
+        lfClaimAllClaimants = claimants.map(t => ({ name: t.studentName, regNo: t.regNo, ticketId: t.id }));
+        const searchInput = document.getElementById('lf-claim-search-input');
+        if (searchInput) searchInput.value = '';
+        renderLFClaimList('');
         document.getElementById('lf-claim-select-modal').style.display = 'flex';
+        setTimeout(() => { if (searchInput) searchInput.focus(); }, 60);
+    }
+
+    // Renders the claimant radio list, optionally filtered by a search term matched against
+    // the student's name or registration number — lets the admin quickly find one claimant
+    // out of many instead of scrolling through the whole list.
+    function renderLFClaimList(filterText) {
+        const listEl = document.getElementById('lf-claim-select-list');
+        const emptyEl = document.getElementById('lf-claim-search-empty');
+        if (!listEl) return;
+        const q = (filterText || '').trim().toLowerCase();
+        const filtered = !q ? lfClaimAllClaimants : lfClaimAllClaimants.filter(c =>
+            (c.name || '').toLowerCase().includes(q) || (c.regNo || '').toLowerCase().includes(q));
+        const previouslyChecked = listEl.querySelector('input[name="lf-claimant"]:checked');
+        const previousTicketId = previouslyChecked ? previouslyChecked.value : null;
+        if (!filtered.length) {
+            listEl.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+        listEl.innerHTML = filtered.map((c, idx) => {
+            const isChecked = previousTicketId ? (c.ticketId === previousTicketId) : (idx === 0);
+            return `
+            <label class="lf-claimant-option">
+                <input type="radio" name="lf-claimant" value="${c.ticketId}" ${isChecked ? 'checked' : ''}>
+                <div class="lf-claimant-option-info">
+                    <strong>${c.name}</strong>
+                    <div style="font-size:0.72rem; color:var(--grey);">Reg No: ${c.regNo}</div>
+                    <div style="font-size:0.7rem; color:#475569;">Ticket ID: ${c.ticketId}</div>
+                </div>
+            </label>`;
+        }).join('');
     }
 
     function closeLFClaimSelectModal() {
         document.getElementById('lf-claim-select-modal').style.display = 'none';
         lfClaimTargetItemId = null;
+        lfClaimAllClaimants = [];
     }
 
     function confirmLFClaimSelection() {
         const listEl = document.getElementById('lf-claim-select-list');
         const selected = listEl.querySelector('input[name="lf-claimant"]:checked');
         if (!selected) { alert('Please select a student.'); return; }
-        const claimants = JSON.parse(listEl.dataset.claimants || '[]');
-        const chosen = claimants[parseInt(selected.value, 10)];
+        const chosen = lfClaimAllClaimants.find(c => c.ticketId === selected.value);
         const item = lostFoundItems.find(i => i.id === lfClaimTargetItemId);
         if (!item || !chosen) return;
         item.status = 'claimed';
