@@ -935,6 +935,9 @@
         #wallet-setup-modal.modal-open { display: flex; }
         #video-ekyc-modal.modal-open { display: flex; }
         #wallet-ekyc-cooldown-modal.modal-open { display: flex; }
+        #wallet-security-modal.modal-open { display: flex; }
+        #wallet-upin-setup-modal.modal-open { display: flex; }
+        #wallet-gate-modal.modal-open { display: flex; }
 
         /* ===== eKYC PROCESSING OVERLAY (Account Diagnosis + Token Verification frames) ===== */
         #ekyc-process-overlay {
@@ -1727,7 +1730,11 @@
             border-radius:10px; margin-bottom:8px; cursor:pointer; box-sizing:border-box; width:100%;
             max-width:100%; overflow:hidden;
         }
-        .lf-claimant-option input[type="radio"] { flex-shrink:0; margin-top:3px; }
+        .lf-claimant-option input[type="radio"] {
+            flex-shrink:0; margin-top:3px; width:18px; height:18px; padding:0; min-width:18px;
+            border:1.5px solid var(--border); border-radius:50%; background:#fff;
+            -webkit-appearance:radio; appearance:auto; accent-color: var(--primary); box-sizing:border-box;
+        }
         .lf-claimant-option-info { min-width:0; flex:1 1 auto; overflow:hidden; }
         .lf-claimant-option-info strong,
         .lf-claimant-option-info div {
