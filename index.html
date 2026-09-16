@@ -10862,16 +10862,25 @@ function openWalletEkycCooldownModal() {
         if (!confirm('Accept this renewal charge? ₹' + req.amount + ' will be deducted from your wallet immediately (balance can go negative if insufficient).')) return;
         // The actual deduction only happens after the Admin verifies with their U-PIN (or
         // biometric) — the confirm() above is just the "are you sure", this is the payment gate.
+        // NOTE: requireWalletUnlock() reloads `wallet` fresh from storage before showing the
+        // gate, which replaces the module-level `wallet` object with a new one. The `req`
+        // captured above would then point at a now-orphaned copy, so mutating it here would
+        // silently write nothing — the request would keep reappearing as "Pending" even after
+        // being accepted (and the balance could be deducted again next time). Re-find the
+        // request on the live `wallet` object inside the callback instead of relying on the
+        // one captured before the gate ran.
         requireWalletUnlock({ title: '🔐 Confirm Payment', desc: 'Verify it\'s you to approve this ₹' + req.amount + ' subscription renewal charge from the Wallet.' }, () => {
+            const liveReq = (wallet.chargeRequests || []).find(r => r.id === reqId && r.status === 'Pending');
+            if (!liveReq) { refreshAllWalletDisplays(); return; }
             const txnId = generateWalletTxnId();
-            wallet.balance = (wallet.balance || 0) - req.amount;
+            wallet.balance = (wallet.balance || 0) - liveReq.amount;
             wallet.transactions = wallet.transactions || [];
-            wallet.transactions.push({ id: txnId, type: 'debit', chargeType: 'renewal', amount: req.amount, balanceAfter: wallet.balance, date: new Date().toISOString(), note: req.note || '', by: 'Super Admin', isSuperAdminCharge: true });
-            req.status = 'Approved'; req.decidedAt = new Date().toISOString();
+            wallet.transactions.push({ id: txnId, type: 'debit', chargeType: 'renewal', amount: liveReq.amount, balanceAfter: wallet.balance, date: new Date().toISOString(), note: liveReq.note || '', by: 'Super Admin', isSuperAdminCharge: true });
+            liveReq.status = 'Approved'; liveReq.decidedAt = new Date().toISOString();
             persistWalletOnly();
             refreshAllWalletDisplays();
             if (typeof updateAdminMenuNotifDots === 'function') updateAdminMenuNotifDots();
-            alert('✅ ₹' + req.amount + ' deducted for subscription renewal.\nNew Balance: ₹' + wallet.balance);
+            alert('✅ ₹' + liveReq.amount + ' deducted for subscription renewal.\nNew Balance: ₹' + wallet.balance);
         });
     }
     function rejectWalletChargeRequest(reqId) {
@@ -10884,7 +10893,12 @@ function openWalletEkycCooldownModal() {
             placeholder: 'Reason for rejection (required)…', confirmLabel: 'Reject Charge', confirmColor: '#dc2626',
             validator: v => !v ? 'A reason is required to reject this request.' : null,
             onConfirm: reason => {
-                req.status = 'Rejected'; req.decidedAt = new Date().toISOString(); req.decisionReason = reason;
+                // Same live-refetch precaution as acceptWalletChargeRequest — tmOpenInputModal's
+                // onConfirm runs after the user interacts with the modal, and `wallet` may have
+                // been refreshed from storage in the meantime.
+                const liveReq = (wallet.chargeRequests || []).find(r => r.id === reqId && r.status === 'Pending');
+                if (!liveReq) { refreshAllWalletDisplays(); return; }
+                liveReq.status = 'Rejected'; liveReq.decidedAt = new Date().toISOString(); liveReq.decisionReason = reason;
                 persistWalletOnly();
                 refreshAllWalletDisplays();
                 if (typeof updateAdminMenuNotifDots === 'function') updateAdminMenuNotifDots();
