@@ -235,6 +235,29 @@
         .error-msg { color: #dc2626; font-size: 0.7rem; margin-top: 4px; display: none; font-weight: 700; }
         .info-text { font-size: 0.7rem; color: var(--grey); margin-top: 4px; line-height: 1.4; }
 
+        /* Modern "day chip" multi-select — used for Working Days pickers (Support Hours,
+           Lost & Found Claim Window). Native checkboxes are kept (hidden) for zero JS changes;
+           only the visible presentation is a rounded, tappable pill that fills in when active. */
+        .day-chip-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+        .day-chip { position: relative; display: inline-block; }
+        .day-chip input {
+            position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
+        }
+        .day-chip span {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 46px; padding: 9px 6px; border-radius: 999px;
+            background: #f1f5f9; color: #64748b; font-size: 0.76rem; font-weight: 800;
+            border: 1.5px solid var(--border); user-select: none; letter-spacing: 0.2px;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+        }
+        .day-chip input:checked + span {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff; border-color: var(--primary-dark);
+            box-shadow: 0 3px 10px rgba(37,99,235,0.30);
+        }
+        .day-chip input:active + span { transform: scale(0.94); }
+        .day-chip input:focus-visible + span { outline: 2px solid var(--primary-dark); outline-offset: 2px; }
+
         button {
             width: 100%; padding: 13px;
             background: var(--primary); color: white; border: none;
@@ -504,6 +527,7 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.2);
             animation: card-in 0.3s ease both;
             overflow-x: hidden;
+            max-height: 88vh; overflow-y: auto;
         }
 
         /* ===== LOCK SCREEN ===== */
@@ -2701,6 +2725,7 @@
             <div style="font-size:2rem; margin-bottom:8px;">🎧</div>
             <h2>Help & Support Center</h2>
             <p>Submit a ticket — we'll resolve it quickly</p>
+            <div id="student-support-hours-block" style="font-size:0.72rem; opacity:0.85; margin-top:4px;"></div>
         </div>
         <div class="help-center-body">
             <!-- Step 1 -->
@@ -3156,11 +3181,13 @@
                     <input type="number" id="ownerPin" oninput="hideError('err-ownerPin'); if(value.length>6) value=value.slice(0,6)" placeholder="6-digit PIN CODE">
                     <div class="error-msg" id="err-ownerPin">Valid 6-digit PIN CODE is required</div>
                 </div>
-                <div class="input-group">
-                    <label>Total Seating Capacity</label>
-                    <input type="number" id="totalSeatsConfig" oninput="hideError('err-totalSeats')" placeholder="e.g. 50">
-                    <div class="error-msg" id="err-totalSeats">Please enter a valid numeric capacity</div>
-                </div>
+            </div>
+            <div class="input-group">
+                <label>Total Seating Capacity</label>
+                <div id="seat-groups-container"></div>
+                <button type="button" onclick="addSeatGroupRow()" style="background:#eef2ff; color:var(--primary-dark); width:auto; padding:8px 16px; margin-top:4px; font-size:0.75rem; border:1px solid #c7d2fe;">➕ Add More</button>
+                <p class="info-text">Suffix is optional (e.g. "A" numbers seats A1, A2, A3…). Leave it blank for plain numbering (1, 2, 3…). Capacity is required for every row.</p>
+                <div class="error-msg" id="err-totalSeats">Please enter a valid capacity for every seat group</div>
             </div>
             <div class="input-group">
                 <label>Merchant UPI ID</label>
@@ -3376,6 +3403,10 @@
                 <div id="admin-new-ticket-notif" style="display:none;" class="notif-dot"></div>
                 <button onclick="openTicketArchiveSettings()" style="background:#f1f5f9;color:#475569;width:auto;padding:8px 14px;margin:0;font-size:0.72rem;border:1px solid var(--border);">🗄 Archive Settings</button>
             </div>
+            <div style="display:flex; align-items:center; gap:8px; margin:-6px 0 14px; font-size:0.75rem; color:var(--grey);">
+                <span id="support-hours-block" style="flex:1;"></span>
+                <button id="admin-support-hours-edit-btn" onclick="openSupportHoursEditModal()" style="display:none; background:#f1f5f9; color:#475569; width:auto; padding:6px 12px; margin:0; font-size:0.68rem; border:1px solid var(--border);">✏️ Edit Hours</button>
+            </div>
             <div class="search-container" style="margin-bottom:15px;">
                 <input type="text" id="admin-ticket-search" onkeyup="renderAdminTickets()" placeholder="🔍 Search by Ticket ID, Name, Reg No...">
                 <div class="filter-tabs" style="margin-top:8px;">
@@ -3407,6 +3438,10 @@
                 <button onclick="closeAhSectionToOwner()" style="background:#f1f5f9; color:#475569; width:auto; padding:8px 16px; margin:0; font-size:0.75rem; border:1px solid var(--border);">✕ Close</button>
             </div>
             <p style="font-size:0.82rem; color:var(--grey); margin-top:-6px; margin-bottom:16px;">Raise an issue directly with the Super Admin / Developer team and track the conversation here.</p>
+
+            <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:16px;">
+                <span id="ah-support-hours-block" style="flex:1; font-size:0.78rem; color:var(--dark);"></span>
+            </div>
 
             <div style="background:#f8fafc; border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:20px;">
                 <div class="faq-dropdown-header" id="ah-faq-dropdown-header" onclick="toggleAhFaqDropdown()">
@@ -3799,6 +3834,38 @@
         </div>
     </div>
 
+    <!-- SUPPORT HOURS EDIT MODAL (Admin only) -->
+    <div id="support-hours-edit-modal" class="modal" style="display:none; z-index:9700;">
+        <div class="modal-content" style="max-width:420px; text-align:left;">
+            <h3 style="margin:0 0 14px; font-family:'Sora',sans-serif; font-size:1rem;">🕒 Edit Support Hours</h3>
+            <div class="input-group">
+                <label>Working Days</label>
+                <div class="day-chip-group">
+                    <label class="day-chip"><input type="checkbox" id="sh-day-1"><span>Mon</span></label>
+                    <label class="day-chip"><input type="checkbox" id="sh-day-2"><span>Tue</span></label>
+                    <label class="day-chip"><input type="checkbox" id="sh-day-3"><span>Wed</span></label>
+                    <label class="day-chip"><input type="checkbox" id="sh-day-4"><span>Thu</span></label>
+                    <label class="day-chip"><input type="checkbox" id="sh-day-5"><span>Fri</span></label>
+                    <label class="day-chip"><input type="checkbox" id="sh-day-6"><span>Sat</span></label>
+                    <label class="day-chip"><input type="checkbox" id="sh-day-0"><span>Sun</span></label>
+                </div>
+            </div>
+            <div style="display:flex; flex-wrap:nowrap; align-items:flex-start; gap:10px;">
+                <div class="input-group" style="flex:1; min-width:0;">
+                    <label>Opens At (optional)</label>
+                    <input type="time" id="sh-open-time" style="width:100%; box-sizing:border-box;">
+                </div>
+                <div class="input-group" style="flex:1; min-width:0;">
+                    <label>Closes At (optional)</label>
+                    <input type="time" id="sh-close-time" style="width:100%; box-sizing:border-box;">
+                </div>
+            </div>
+            <p style="font-size:0.68rem; color:var(--grey); margin:-8px 0 14px;">Shown to students in the Help &amp; Support Center. Leave no day checked / times blank for no restriction.</p>
+            <button onclick="saveSupportHours()" style="background:#10b981;">🚀 Save</button>
+            <button onclick="closeSupportHoursEditModal()" style="background:#94a3b8; margin-top:8px;">✕ Cancel</button>
+        </div>
+    </div>
+
     <!-- LOST & FOUND: CLAIM PROCEDURE EDIT MODAL (Admin only) -->
     <div id="lf-procedure-edit-modal" class="modal" style="display:none; z-index:9700;">
         <div class="modal-content" style="max-width:460px; text-align:left;">
@@ -3817,7 +3884,19 @@
                     <input type="time" id="lf-proc-edit-end">
                 </div>
             </div>
-            <p style="font-size:0.68rem; color:var(--grey); margin:-8px 0 14px;">Leave both times blank to allow claims at any time. If set, students can only raise a Lost &amp; Found claim between these two times.</p>
+            <div class="input-group">
+                <label>Working Days (optional)</label>
+                <div class="day-chip-group">
+                    <label class="day-chip"><input type="checkbox" id="lf-proc-day-1"><span>Mon</span></label>
+                    <label class="day-chip"><input type="checkbox" id="lf-proc-day-2"><span>Tue</span></label>
+                    <label class="day-chip"><input type="checkbox" id="lf-proc-day-3"><span>Wed</span></label>
+                    <label class="day-chip"><input type="checkbox" id="lf-proc-day-4"><span>Thu</span></label>
+                    <label class="day-chip"><input type="checkbox" id="lf-proc-day-5"><span>Fri</span></label>
+                    <label class="day-chip"><input type="checkbox" id="lf-proc-day-6"><span>Sat</span></label>
+                    <label class="day-chip"><input type="checkbox" id="lf-proc-day-0"><span>Sun</span></label>
+                </div>
+            </div>
+            <p style="font-size:0.68rem; color:var(--grey); margin:-8px 0 14px;">Leave both times blank to allow claims at any time, and no day checked to allow claims on any day. If set, students can only raise a Lost &amp; Found claim on the checked day(s), between these two times.</p>
             <button onclick="saveLFProcedure()" style="background:#10b981;">🚀 Save &amp; Publish</button>
             <button onclick="resetLFProcedureToDefault()" style="background:#f59e0b; margin-top:8px;">↺ Reset Text to Default</button>
             <button onclick="closeLFProcedureEditModal()" style="background:#94a3b8; margin-top:8px;">✕ Cancel</button>
@@ -4135,6 +4214,20 @@
         let statusMap = {};
         try { statusMap = JSON.parse(localStorage.getItem('Samarthak_AdminStatus') || '{}'); } catch(e) { statusMap = {}; }
         return statusMap[id] || { blocked: false, discontinued: false };
+    }
+
+    // Demo-account login window, set by the Super Admin (Manage Admin And Student > Admin
+    // Accounts > that admin's ⚙️ Setting > Demo Account Timing). Only meaningful for an admin
+    // that was marked "demo" when added; other admins are always unrestricted here.
+    function getAdminDemoStatus(id) {
+        let extra = [];
+        try { extra = JSON.parse(localStorage.getItem('Samarthak_ExtraAdmins') || '[]'); } catch(e) { extra = []; }
+        const rec = extra.find(a => a.id === id);
+        if (!rec || !rec.isDemo) return { isDemo: false, expired: false };
+        let expiries = {};
+        try { expiries = JSON.parse(localStorage.getItem('Samarthak_SA_AdminDemoExpiry') || '{}'); } catch(e) { expiries = {}; }
+        const exp = expiries[id];
+        return { isDemo: true, expired: !!exp && new Date() > new Date(exp) };
     }
 
     // ===== PER-ADMIN (PER-LIBRARY) DATA ISOLATION =====
@@ -4639,6 +4732,7 @@
             const data = JSON.parse(raw);
             wallet = ensureWalletShape(data.wallet);
             if (finalizeWalletClosureIfDue(wallet)) persistWalletOnly();
+            if (applyEkycAutoCycle(wallet)) persistWalletOnly();
         } catch (e) { /* keep whatever is already in memory */ }
     }
 
@@ -4687,6 +4781,10 @@
         // eKYC: only forced by the Super Admin. status: null (never forced) / 'pending' /
         // 'cooldown' (rejected, waiting out the 24h retry window) / 'verified'.
         if (w.ekycRequest === undefined) w.ekycRequest = null;
+        // Marks a freeze that THIS auto-cycle (not the Super Admin manually) put in place, so it
+        // can be safely auto-lifted the moment eKYC is completed, without ever touching a freeze
+        // the Super Admin applied for their own reasons.
+        if (w.ekycAutoFrozen === undefined) w.ekycAutoFrozen = false;
         // First-time wallet setup: mandatory owner eKYC details + AI-based Video eKYC,
         // required once before the wallet can be used at all. status: 'not_started' /
         // 'verified' / 'failed' (in 24h cooldown, tracked via cooldownUntil).
@@ -4717,6 +4815,75 @@
             return true;
         }
         return false;
+    }
+
+    // ===== AUTO eKYC RE-VERIFICATION CYCLE (runs on its own — no Super Admin action needed) =====
+    // Every ~6 months since the wallet's last successful eKYC (initial setup, or a previous
+    // forced re-verification — whichever is more recent), the system raises a fresh Force eKYC
+    // request automatically, exactly as if the Super Admin had forced one. If that request (auto
+    // or manually forced) isn't completed within 15 days, the wallet is frozen automatically;
+    // completing the eKYC automatically lifts a freeze that this cycle itself put in place.
+    var EKYC_AUTO_CYCLE_DAYS = 180;   // ~6 months
+    var EKYC_AUTO_DEADLINE_DAYS = 15;
+    function applyEkycAutoCycle(w) {
+        if (!w || !w.setup || !w.setup.done) return false; // mandatory first-time setup not done yet — out of scope
+        if (w.status === 'closing' || w.status === 'closed') return false; // nothing to enforce on a closing/closed wallet
+        var changed = false;
+        var now = new Date();
+
+        // 1) Auto-unfreeze first: if this cycle froze the wallet for a missed eKYC deadline and
+        //    the eKYC has since been completed, lift the freeze immediately.
+        if (w.ekycAutoFrozen && w.status === 'frozen' && w.ekycRequest && w.ekycRequest.status === 'verified') {
+            var restoreTo = w.statusBeforeFreeze || 'active';
+            w.status = restoreTo;
+            w.statusBeforeFreeze = null;
+            w.ekycAutoFrozen = false;
+            var unfrozenAt = now.toISOString();
+            w.lockHistory = w.lockHistory || [];
+            w.lockHistory.push({ action: 'unfreeze', label: 'Wallet Auto-Unfrozen — eKYC Completed', date: unfrozenAt, by: 'System', reason: w.freezeReason });
+            w.freezeReason = null;
+            w.frozenAt = null;
+            changed = true;
+        }
+
+        // 2) Auto-freeze: an outstanding (pending) eKYC request — auto-raised or Super-Admin-
+        //    forced — that has sat unanswered for more than 15 days.
+        if (w.ekycRequest && w.ekycRequest.status === 'pending' && w.ekycRequest.forcedAt && w.status !== 'frozen') {
+            var daysSinceForced = (now - new Date(w.ekycRequest.forcedAt)) / 86400000;
+            if (daysSinceForced >= EKYC_AUTO_DEADLINE_DAYS) {
+                w.statusBeforeFreeze = w.status;
+                w.status = 'frozen';
+                w.ekycAutoFrozen = true;
+                w.freezeReason = 'eKYC verification request was not completed within 15 days.';
+                w.frozenAt = now.toISOString();
+                w.lockHistory = w.lockHistory || [];
+                w.lockHistory.push({ action: 'freeze', label: 'Wallet Auto-Frozen — eKYC Deadline Missed', date: w.frozenAt, by: 'System', reason: w.freezeReason });
+                changed = true;
+            }
+        }
+
+        // 3) Auto-raise a fresh eKYC request every ~6 months, but only when there isn't already
+        //    one outstanding (pending, or in its post-rejection cooldown).
+        var noOutstandingRequest = !w.ekycRequest || (w.ekycRequest.status !== 'pending' && w.ekycRequest.status !== 'cooldown');
+        if (noOutstandingRequest) {
+            var lastVerifiedCandidates = [
+                w.ekycRequest && w.ekycRequest.verifiedAt,
+                w.setup && w.setup.videoEkyc && w.setup.videoEkyc.verifiedAt
+            ].filter(Boolean).map(function (d) { return new Date(d).getTime(); });
+            var lastVerifiedAt = lastVerifiedCandidates.length ? Math.max.apply(null, lastVerifiedCandidates) : null;
+            var daysSinceVerified = lastVerifiedAt ? (now - lastVerifiedAt) / 86400000 : Infinity;
+            if (daysSinceVerified >= EKYC_AUTO_CYCLE_DAYS) {
+                w.ekycRequest = {
+                    status: 'pending', forcedAt: now.toISOString(), forcedBy: 'System (Auto 6-Month Cycle)',
+                    nextAttemptAt: null, verifiedAt: null, history: (w.ekycRequest && w.ekycRequest.history) || []
+                };
+                w.lockHistory = w.lockHistory || [];
+                w.lockHistory.push({ action: 'ekyc_forced', label: 'eKYC Re-verification Auto-Requested (6-Month Cycle)', date: w.ekycRequest.forcedAt, by: 'System' });
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     // Writes just the wallet field back into this library's stored payload, without touching
@@ -5996,6 +6163,7 @@
                 waitingList = data.waitingList || []; allocationLog = data.allocationLog || [];
                 wallet = ensureWalletShape(data.wallet);
                 if (finalizeWalletClosureIfDue(wallet)) persistWalletOnly();
+                if (applyEkycAutoCycle(wallet)) persistWalletOnly();
             } catch(e) {
                 console.warn('Load error', e);
                 config = { libName:"", totalSeats:0, upi:"", mobile:"", address:"", pin:"", shifts:[], signature:null };
@@ -6020,7 +6188,7 @@
             document.getElementById('feeDisplayUPI').innerText = "Pay to: " + config.upi;
             document.getElementById('libName').value = config.libName;
             document.getElementById('ownerName').value = config.ownerName || '';
-            document.getElementById('totalSeatsConfig').value = config.totalSeats;
+            renderSeatGroupRows(config.seatGroups && config.seatGroups.length ? config.seatGroups : [{ suffix: '', capacity: config.totalSeats || '' }]);
             document.getElementById('ownerUPI').value = config.upi;
             document.getElementById('ownerMobile').value = config.mobile;
             document.getElementById('ownerAddress').value = config.address;
@@ -6040,7 +6208,7 @@
             document.getElementById('feeDisplayUPI').innerText = '';
             document.getElementById('libName').value = '';
             document.getElementById('ownerName').value = '';
-            document.getElementById('totalSeatsConfig').value = '';
+            renderSeatGroupRows([{ suffix: '', capacity: '' }]);
             document.getElementById('ownerUPI').value = '';
             document.getElementById('ownerMobile').value = '';
             document.getElementById('ownerAddress').value = '';
@@ -6725,6 +6893,86 @@
         return new Date(dateStr).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
     }
 
+    // ===== SHARED "WORKING DAYS" HELPERS — used by both the Help & Support Center's support
+    // hours (config.supportHours) and the Lost & Found Claim Window (config.lostFoundProcedure).
+    // Day numbers follow JS Date.getDay(): 0=Sunday .. 6=Saturday. =====
+    const WEEKDAY_SHORT_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    function formatWorkingDaysList(days) {
+        if (!Array.isArray(days) || !days.length) return '';
+        return days.slice().sort((a,b) => a-b).map(d => WEEKDAY_SHORT_LABELS[d] || '').filter(Boolean).join(', ');
+    }
+    function formatHHMMTime(hhmm) {
+        if (!hhmm) return '';
+        const [h, m] = hhmm.split(':').map(Number);
+        const period = h >= 12 ? 'PM' : 'AM';
+        const h12 = ((h % 12) || 12);
+        return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+    }
+    // Support Hours: library-wide, shown in the Help & Support Center on both the Admin and
+    // Student side, editable only from the Admin's own dashboard. Defaults to Mon–Sat.
+    function getSupportHours() {
+        return config.supportHours || { days: [1,2,3,4,5,6], openTime: '10:00', closeTime: '19:00' };
+    }
+    // Super Admin / Dev team's own working hours — global (not per-library), set only from the
+    // Super Admin dashboard's "Working Hours Settings". Shown read-only in the Admin's own
+    // Help & Support Center (the channel Admin uses to raise a ticket to the Super Admin), since
+    // this tells the Admin when *we* (the Super Admin/Dev team) are available — the Admin has no
+    // ability to change it here.
+    function getSaWorkingHours() {
+        try {
+            const v = JSON.parse(localStorage.getItem('Samarthak_SA_WorkingHours') || 'null');
+            return v || { days: [1,2,3,4,5,6], openTime: '10:00', closeTime: '19:00' };
+        } catch(e) { return { days: [1,2,3,4,5,6], openTime: '10:00', closeTime: '19:00' }; }
+    }
+    function renderSaWorkingHoursBlock(hostId) {
+        const host = document.getElementById(hostId);
+        if (!host) return;
+        const wh = getSaWorkingHours();
+        const daysText = formatWorkingDaysList(wh.days) || 'Any day';
+        const timeText = (wh.openTime && wh.closeTime) ? (formatHHMMTime(wh.openTime) + ' – ' + formatHHMMTime(wh.closeTime)) : 'Any time';
+        host.innerHTML = '🕒 We\'re available: <strong>' + daysText + '</strong>, ' + timeText + '.';
+    }
+    function renderSupportHoursBlock(hostId, editBtnId, showEdit) {
+        const host = document.getElementById(hostId);
+        if (host) {
+            const sh = getSupportHours();
+            const daysText = formatWorkingDaysList(sh.days) || 'Any day';
+            const timeText = (sh.openTime && sh.closeTime) ? (formatHHMMTime(sh.openTime) + ' – ' + formatHHMMTime(sh.closeTime)) : 'Any time';
+            host.innerHTML = '🕒 Support available: <strong>' + daysText + '</strong>, ' + timeText + '.';
+        }
+        const editBtn = editBtnId ? document.getElementById(editBtnId) : null;
+        if (editBtn) editBtn.style.display = showEdit ? 'inline-block' : 'none';
+    }
+    function openSupportHoursEditModal() {
+        const sh = getSupportHours();
+        for (let d = 0; d <= 6; d++) {
+            const cb = document.getElementById('sh-day-' + d);
+            if (cb) cb.checked = (sh.days || []).includes(d);
+        }
+        document.getElementById('sh-open-time').value = sh.openTime || '';
+        document.getElementById('sh-close-time').value = sh.closeTime || '';
+        document.getElementById('support-hours-edit-modal').style.display = 'flex';
+    }
+    function closeSupportHoursEditModal() {
+        document.getElementById('support-hours-edit-modal').style.display = 'none';
+    }
+    function saveSupportHours() {
+        const days = [];
+        for (let d = 0; d <= 6; d++) {
+            const cb = document.getElementById('sh-day-' + d);
+            if (cb && cb.checked) days.push(d);
+        }
+        const openTime = document.getElementById('sh-open-time').value || '';
+        const closeTime = document.getElementById('sh-close-time').value || '';
+        if ((openTime && !closeTime) || (!openTime && closeTime)) { alert('Please set both an opening and a closing time, or leave both blank for no time restriction.'); return; }
+        config.supportHours = { days, openTime, closeTime };
+        saveToLocal();
+        renderSupportHoursBlock('support-hours-block', 'admin-support-hours-edit-btn', true);
+        renderSupportHoursBlock('student-support-hours-block', null, false);
+        closeSupportHoursEditModal();
+        alert('✅ Support hours updated.');
+    }
+
     function getFullMonthName(monthYearStr) {
         if (!monthYearStr) return "";
         const [year, month] = monthYearStr.split('-');
@@ -6757,6 +7005,12 @@
 
         const validAdmin = findAdminAccount(id);
         if (validAdmin && validAdmin[1] === pass) {
+            const demoStatus = getAdminDemoStatus(id);
+            if (demoStatus.isDemo && demoStatus.expired) {
+                errDiv.style.display = 'block';
+                errDiv.innerText = "⏳ This demo account's access window has ended. Login is no longer available.";
+                return;
+            }
             if (loginAttempts[id]) delete loginAttempts[id];
             saveLoginAttempts();
             // Clear previous session state
@@ -7769,11 +8023,76 @@
 
     function removeShift(idx) { config.shifts.splice(idx, 1); renderShiftList(); saveToLocal(); }
 
+    // ===== SEAT GROUPS (suffix + capacity) =====
+    // Purely a DISPLAY-layer feature: internally, every seat is still just a plain number
+    // 1..config.totalSeats (booking, conflict-checking, waiting-list allocation, capacity
+    // math — all of it — stays untouched and keeps working exactly as before). config.seatGroups
+    // records how the admin wants that numeric range split into labelled blocks (e.g. suffix
+    // "A" capacity 10 → seats 1..10 display as A1..A10), and config.seatLabels is the derived
+    // seat-number → display-label lookup, rebuilt every time this form is saved.
+    let _seatGroupRowId = 0;
+    function renderSeatGroupRows(groups) {
+        const host = document.getElementById('seat-groups-container');
+        host.innerHTML = '';
+        _seatGroupRowId = 0;
+        groups.forEach(g => addSeatGroupRow(g.suffix || '', g.capacity != null ? g.capacity : ''));
+    }
+    function addSeatGroupRow(suffixVal, capacityVal) {
+        const host = document.getElementById('seat-groups-container');
+        const rowId = 'sg-row-' + (_seatGroupRowId++);
+        const row = document.createElement('div');
+        row.id = rowId;
+        row.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
+        const isFirst = host.children.length === 0;
+        row.innerHTML =
+            '<input type="text" class="sg-suffix" maxlength="6" placeholder="Suffix (optional) e.g. A" style="flex:1;" value="' + (suffixVal || '').replace(/"/g,'&quot;') + '">' +
+            '<input type="number" class="sg-capacity" min="1" placeholder="Capacity" style="flex:1;" value="' + (capacityVal != null ? capacityVal : '') + '" oninput="hideError(\'err-totalSeats\')">' +
+            (isFirst ? '' : '<button type="button" onclick="removeSeatGroupRow(\'' + rowId + '\')" style="width:auto; padding:11px 14px; margin:0; background:#fef2f2; color:#dc2626; border:1.5px solid #fecaca;">✕</button>');
+        host.appendChild(row);
+    }
+    function removeSeatGroupRow(rowId) {
+        const el = document.getElementById(rowId);
+        if (el) el.remove();
+    }
+    // Reads the current seat-group rows from the form. Returns null (and shows the error) if
+    // any row is missing a capacity — suffix is always optional, capacity is always required.
+    function readSeatGroupsFromForm() {
+        const rows = document.querySelectorAll('#seat-groups-container > div');
+        const groups = [];
+        for (const row of rows) {
+            const suffix = row.querySelector('.sg-suffix').value.trim();
+            const capacityRaw = row.querySelector('.sg-capacity').value;
+            const capacity = parseInt(capacityRaw);
+            if (!capacityRaw || isNaN(capacity) || capacity <= 0) return null;
+            groups.push({ suffix, capacity });
+        }
+        return groups.length ? groups : null;
+    }
+    // Builds the seat-number (1-based) → display-label lookup from the seat groups, in order:
+    // group 1 gets seat numbers 1..cap1, group 2 gets cap1+1..cap1+cap2, and so on. A group
+    // with no suffix labels its seats with plain numbers, continuing the running seat count.
+    function buildSeatLabels(groups) {
+        const labels = [];
+        groups.forEach(g => {
+            for (let n = 1; n <= g.capacity; n++) labels.push(g.suffix ? (g.suffix + n) : String(labels.length + 1));
+        });
+        return labels;
+    }
+    // Display-only helper: converts an internal seat number into its labelled form (e.g. 11 →
+    // "B1"). Every place that still needs the plain internal number for logic (bookings,
+    // conflicts, capacity math) keeps using the number directly — only user-facing text should
+    // call this.
+    function seatLabel(n) {
+        if (!n && n !== 0) return n;
+        return (config.seatLabels && config.seatLabels[n - 1]) || String(n);
+    }
+
     function saveOwnerSettings() {
         document.querySelectorAll('.error-msg').forEach(e => e.style.display = 'none');
         const ownerNameVal = document.getElementById('ownerName').value.trim();
         const name = document.getElementById('libName').value.trim();
-        const seats = document.getElementById('totalSeatsConfig').value;
+        const seatGroups = readSeatGroupsFromForm();
+        const seats = seatGroups ? seatGroups.reduce((sum, g) => sum + g.capacity, 0) : 0;
         const upi = document.getElementById('ownerUPI').value.trim();
         const mobile = document.getElementById('ownerMobile').value.trim();
         const addr = document.getElementById('ownerAddress').value.trim();
@@ -7782,7 +8101,7 @@
         if (!ownerNameVal) { document.getElementById('err-ownerName').style.display='block'; err=true; }
         if (!name) { document.getElementById('err-libName').style.display='block'; err=true; }
         if (!/^\d{10}$/.test(mobile)) { document.getElementById('err-ownerMobile').style.display='block'; err=true; }
-        if (!seats || seats <= 0) { document.getElementById('err-totalSeats').style.display='block'; err=true; }
+        if (!seatGroups) { document.getElementById('err-totalSeats').style.display='block'; err=true; }
         if (!/^[\w.-]+@[\w.-]+$/.test(upi)) { document.getElementById('err-ownerUPI').style.display='block'; err=true; }
         if (!addr) { document.getElementById('err-ownerAddress').style.display='block'; err=true; }
         if (!/^\d{6}$/.test(pin)) { document.getElementById('err-ownerPin').style.display='block'; err=true; }
@@ -7810,7 +8129,7 @@
                 if (!proceed) return;
             }
         }
-        config = { ...config, ownerName: ownerNameVal, libName:name, totalSeats:newTotalSeats, upi, mobile, address:addr, pin, signature:sigData };
+        config = { ...config, ownerName: ownerNameVal, libName:name, totalSeats:newTotalSeats, seatGroups, seatLabels: buildSeatLabels(seatGroups), upi, mobile, address:addr, pin, signature:sigData };
         // Smart Seat Allocation settings are managed from their own modal (⚙️ inside the
         // Waiting List screen) now, not this form, so they're simply carried over untouched.
         if (!config.smartSeat) config.smartSeat = { enabled:true, onRelease:true, onDemoRelease:true, onCapacityIncrease:true, holdMinutes:15 };
@@ -7872,11 +8191,11 @@
             if (booked) { seat.classList.add('booked'); seat.innerText = 'X'; }
             else {
                 anyAvailable = true;
-                seat.innerText = i;
+                seat.innerText = seatLabel(i);
                 seat.onclick = () => {
                     document.querySelectorAll('.seat').forEach(s => s.classList.remove('selected'));
                     seat.classList.add('selected'); selectedSeat = i;
-                    document.getElementById('seatDisplay').value = "Seat No: " + i;
+                    document.getElementById('seatDisplay').value = "Seat No: " + seatLabel(i);
                     hideError('err-seat');
                 };
             }
@@ -8587,7 +8906,7 @@
     function openDemoConfirmModal(demoId) {
         const s = students.find(x => x.id === demoId); if (!s) return;
         currentDemoConfirmId = demoId;
-        document.getElementById('demo-confirm-student-name').innerText = `${s.name} | Seat ${s.seat} | ${s.shiftName}`;
+        document.getElementById('demo-confirm-student-name').innerText = `${s.name} | Seat ${seatLabel(s.seat)} | ${s.shiftName}`;
         document.getElementById('demo-edit-name').value = s.name;
         document.getElementById('demo-edit-fname').value = s.fname;
         document.getElementById('demo-edit-mobile').value = s.mobile;
@@ -8953,7 +9272,7 @@
                             <strong style="font-size:0.95rem;">${s.name} <span class="demo-badge">DEMO</span></strong>
                             <span style="color:#7c3aed; font-size:0.68rem; font-weight:700;">TRIAL MODE</span>
                         </div>
-                        <p style="font-size:0.78rem; margin:3px 0; color:var(--grey);">Seat ${s.seat} &nbsp;|&nbsp; ${(()=>{const sh=config.shifts.find(x=>x.id===s.shift);return sh?sh.name:s.shiftName;})()} </p>
+                        <p style="font-size:0.78rem; margin:3px 0; color:var(--grey);">Seat ${seatLabel(s.seat)} &nbsp;|&nbsp; ${(()=>{const sh=config.shifts.find(x=>x.id===s.shift);return sh?sh.name:s.shiftName;})()} </p>
                         <p style="font-size:0.72rem; font-weight:800; color:#7c3aed; margin:3px 0;">● Demo Day ${demoDays} of 10 &nbsp;|&nbsp; ${daysLeft} day(s) remaining</p>
                         <p style="font-size:0.68rem; color:#475569; margin:2px 0;">Demo Started: ${formatAppDate(s.demoDate)}</p>
                     </div>
@@ -8993,7 +9312,7 @@
                                 <strong style="font-size:0.95rem;">${s.name}</strong>
                                 <span style="color:var(--grey); font-size:0.68rem; font-weight:700;">${s.regNo}</span>
                             </div>
-                            <p style="font-size:0.78rem; margin:3px 0; color:var(--grey);">Seat ${s.seat} &nbsp;|&nbsp; ${(()=>{const sh=config.shifts.find(x=>x.id===s.shift);return sh?sh.name:s.shiftName;})()}</p>
+                            <p style="font-size:0.78rem; margin:3px 0; color:var(--grey);">Seat ${seatLabel(s.seat)} &nbsp;|&nbsp; ${(()=>{const sh=config.shifts.find(x=>x.id===s.shift);return sh?sh.name:s.shiftName;})()}</p>
                             <p style="font-size:0.72rem; font-weight:800; color:${statusColor}; margin:3px 0;">${statusText}</p>
                             <p style="font-size:0.68rem; color:#475569; margin:2px 0;">Reg: ${formatAppDate(s.date)} &nbsp;|&nbsp; Next Due: <strong>${dueDateStr}</strong></p>
                             ${s.isBlocked ? `<div class="blocked-badge">🔒 DASHBOARD BLOCKED</div>` : ''}
@@ -9268,7 +9587,7 @@
     function openFeePanel(id) {
         currentFeeStudentId = id;
         const s = students.find(x => x.id === id);
-        document.getElementById('fee-student-name').innerText = `${s.regNo} | ${s.name} | Seat: ${s.seat}`;
+        document.getElementById('fee-student-name').innerText = `${s.regNo} | ${s.name} | Seat: ${seatLabel(s.seat)}`;
         document.getElementById('feeMonth').value = new Date().toISOString().slice(0,7);
         const currentShiftObj = config.shifts.find(sh => sh.id === s.shift);
         const currentPrice = currentShiftObj ? currentShiftObj.price : s.amount;
@@ -11575,7 +11894,7 @@ function openWalletEkycCooldownModal() {
             payAppSelect.disabled = true;
         } else { payAppSelect.disabled = true; txnInput.readOnly = true; }
         photoData = s.photo; if (photoData) { const p = document.getElementById('photo-preview-img'); p.src = photoData; p.style.display = 'block'; }
-        selectedSeat = s.seat; document.getElementById('seatDisplay').value = "Seat No: " + s.seat;
+        selectedSeat = s.seat; document.getElementById('seatDisplay').value = "Seat No: " + seatLabel(s.seat);
         document.getElementById('formTitle').innerText = "Update Registration";
         document.getElementById('cancelEditBtn').style.display = "block";
         document.getElementById('mainBtn').innerText = "Confirm Update";
@@ -11695,7 +12014,7 @@ function openWalletEkycCooldownModal() {
         const fields = [
             { label: "Reg No.", value: isDemo ? "Pending (Demo)" : (s.regNo || "N/A") },
             { label: "Shift", value: (()=>{ const sh=config.shifts.find(x=>x.id===s.shift); return sh?(sh.name+(sh.start&&sh.end?` (${sh.start}-${sh.end})`:'')):s.shiftName||"N/A"; })().substring(0, 28) },
-            { label: "Seat No.", value: String(s.seat || "N/A") },
+            { label: "Seat No.", value: String(s.seat ? seatLabel(s.seat) : "N/A") },
             { label: isDemo ? "Demo Start" : "Reg. Date", value: formatAppDate(isDemo ? s.demoDate : s.date) },
         ];
 
@@ -12034,6 +12353,7 @@ function openWalletEkycCooldownModal() {
     }
 
     function openHelpCenter() {
+        renderSupportHoursBlock('student-support-hours-block', null, false);
         document.getElementById('hc-step1').style.display='block';
         document.getElementById('hc-step2').style.display='none';
         document.getElementById('hc-step3').style.display='none';
@@ -13162,6 +13482,7 @@ function openWalletEkycCooldownModal() {
 
     function renderAdminTickets() {
         const tbody = document.getElementById('admin-ticket-tbody'); if (!tbody) return; tbody.innerHTML='';
+        renderSupportHoursBlock('support-hours-block', 'admin-support-hours-edit-btn', true);
         const query = (document.getElementById('admin-ticket-search')?document.getElementById('admin-ticket-search').value:'').toLowerCase();
         const archCount = tickets.filter(isTicketArchived).length;
         const archBtn = document.getElementById('admin-archived-count');
@@ -13549,6 +13870,7 @@ function openWalletEkycCooldownModal() {
 
     function renderAhTickets() {
         const tbody = document.getElementById('ah-ticket-tbody'); if (!tbody) return; tbody.innerHTML='';
+        renderSaWorkingHoursBlock('ah-support-hours-block');
         // Reflect current Admin ticket-creation restriction status (moderation engine).
         const ahBtnWrap = document.getElementById('ah-raise-ticket-btn-wrap');
         const ahBlockedNotice = document.getElementById('ah-ticket-blocked-notice');
@@ -15112,7 +15434,7 @@ The lost article(s) must be claimed within **120 days from the date of reporting
 The **Library Lost & Found service is provided free of charge**. The Library does not authorize any person or party to demand payment or make claims on behalf of the Library in connection with the return of lost property.`;
 
     function getLFProcedure() {
-        return config.lostFoundProcedure || { text: LF_PROCEDURE_DEFAULT_TEXT, startTime: '', endTime: '' };
+        return config.lostFoundProcedure || { text: LF_PROCEDURE_DEFAULT_TEXT, startTime: '', endTime: '', days: [] };
     }
 
     // Tiny markdown-lite renderer: supports **bold** inline, blank-line-separated paragraphs,
@@ -15144,9 +15466,10 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
         if (textEl) textEl.innerHTML = lfProcMarkdownToHtml(proc.text || LF_PROCEDURE_DEFAULT_TEXT);
         const timingEl = document.getElementById('lf-procedure-timing');
         if (timingEl) {
-            timingEl.innerHTML = (proc.startTime && proc.endTime)
-                ? `⏰ Claims can be raised only between <strong>${lfFormatTime(proc.startTime)}</strong> and <strong>${lfFormatTime(proc.endTime)}</strong>.`
-                : '';
+            const bits = [];
+            if (Array.isArray(proc.days) && proc.days.length) bits.push(`📅 Claims can be raised only on <strong>${formatWorkingDaysList(proc.days)}</strong>.`);
+            if (proc.startTime && proc.endTime) bits.push(`⏰ Claims can be raised only between <strong>${lfFormatTime(proc.startTime)}</strong> and <strong>${lfFormatTime(proc.endTime)}</strong>.`);
+            timingEl.innerHTML = bits.join(' ');
         }
         const editBtn = document.getElementById('lf-proc-edit-btn');
         const adminViewOpen = document.getElementById('lf-admin-view') && document.getElementById('lf-admin-view').style.display !== 'none';
@@ -15171,11 +15494,20 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
         return start <= end ? (cur >= start && cur <= end) : (cur >= start || cur <= end);
     }
 
+    function lfCurrentDayAllowed(days) {
+        if (!Array.isArray(days) || !days.length) return true;
+        return days.includes(new Date().getDay());
+    }
+
     function openLFProcedureEditModal() {
         const proc = getLFProcedure();
         document.getElementById('lf-proc-edit-text').value = proc.text || LF_PROCEDURE_DEFAULT_TEXT;
         document.getElementById('lf-proc-edit-start').value = proc.startTime || '';
         document.getElementById('lf-proc-edit-end').value = proc.endTime || '';
+        for (let d = 0; d <= 6; d++) {
+            const cb = document.getElementById('lf-proc-day-' + d);
+            if (cb) cb.checked = (proc.days || []).includes(d);
+        }
         document.getElementById('lf-procedure-edit-modal').style.display = 'flex';
     }
 
@@ -15187,9 +15519,14 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
         const text = document.getElementById('lf-proc-edit-text').value.trim();
         const startTime = document.getElementById('lf-proc-edit-start').value || '';
         const endTime = document.getElementById('lf-proc-edit-end').value || '';
+        const days = [];
+        for (let d = 0; d <= 6; d++) {
+            const cb = document.getElementById('lf-proc-day-' + d);
+            if (cb && cb.checked) days.push(d);
+        }
         if (!text) { alert('Procedure text cannot be empty.'); return; }
         if ((startTime && !endTime) || (!startTime && endTime)) { alert('Please set both a start and an end time, or leave both blank for no restriction.'); return; }
-        config.lostFoundProcedure = { text, startTime, endTime };
+        config.lostFoundProcedure = { text, startTime, endTime, days };
         saveToLocal();
         renderLFProcedureBlock();
         closeLFProcedureEditModal();
@@ -15483,6 +15820,10 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
         }
         const item = lostFoundItems.find(i => i.id === id); if (!item) return;
         const proc = getLFProcedure();
+        if (Array.isArray(proc.days) && proc.days.length && !lfCurrentDayAllowed(proc.days)) {
+            alert(`Lost & Found claims can only be raised on ${formatWorkingDaysList(proc.days)}. Please try again on one of those days.`);
+            return;
+        }
         if (proc.startTime && proc.endTime && !lfCurrentTimeWithinWindow(proc.startTime, proc.endTime)) {
             alert(`Lost & Found claims can only be raised between ${lfFormatTime(proc.startTime)} and ${lfFormatTime(proc.endTime)}. Please try again during that window.`);
             return;
@@ -15943,7 +16284,7 @@ The **Library Lost & Found service is provided free of charge**. The Library doe
 
         // Waiting List → auto-allocation welcome notice
         if (s.allocatedFromWaitlist) {
-            notifs.push({ type:'waitlist', icon:'🎉', title:'Seat Automatically Allocated', msg:`Good news! Seat ${s.seat} (${s.shiftName}) was automatically allocated to you from the Waiting List.`, date: new Date(s.date), sortDate: new Date(s.date) });
+            notifs.push({ type:'waitlist', icon:'🎉', title:'Seat Automatically Allocated', msg:`Good news! Seat ${seatLabel(s.seat)} (${s.shiftName}) was automatically allocated to you from the Waiting List.`, date: new Date(s.date), sortDate: new Date(s.date) });
         }
 
         // Query Guide Book — step guides pushed by the Admin or Super Admin for this student
