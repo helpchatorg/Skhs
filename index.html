@@ -4223,11 +4223,17 @@
         let extra = [];
         try { extra = JSON.parse(localStorage.getItem('Samarthak_ExtraAdmins') || '[]'); } catch(e) { extra = []; }
         const rec = extra.find(a => a.id === id);
-        if (!rec || !rec.isDemo) return { isDemo: false, expired: false };
+        if (!rec || !rec.isDemo) return { isDemo: false, blocked: false, reason: '' };
         let expiries = {};
         try { expiries = JSON.parse(localStorage.getItem('Samarthak_SA_AdminDemoExpiry') || '{}'); } catch(e) { expiries = {}; }
         const exp = expiries[id];
-        return { isDemo: true, expired: !!exp && new Date() > new Date(exp) };
+        // A demo account is blocked by default — the whole point of marking it "demo" is that it
+        // needs the Super Admin to actively grant a time window before it can be used at all.
+        // "No time limit set" in the Super Admin's Demo Account Timing screen means that window
+        // hasn't been granted yet, not that the account is unrestricted.
+        if (!exp) return { isDemo: true, blocked: true, reason: "This demo account doesn't have an access window set yet. Contact the Super Admin." };
+        if (new Date() > new Date(exp)) return { isDemo: true, blocked: true, reason: "This demo account's access window has ended. Login is no longer available." };
+        return { isDemo: true, blocked: false, reason: '' };
     }
 
     // ===== PER-ADMIN (PER-LIBRARY) DATA ISOLATION =====
@@ -6033,6 +6039,27 @@
     window.addEventListener('storage', function(e) {
         if (!_activeAdminId || e.key !== activeDbKey()) return;
 
+        // Pull the freshest config (and each student's own record) in from storage too — not
+        // just tickets/wallet — so things like an Admin's seat-suffix change in System
+        // Configuration, or any other student-record edit, show up immediately on an already-open
+        // Student dashboard (and in anything generated from it afterwards, like the Fee Receipt
+        // or Attendance Report PDFs) without needing a manual refresh.
+        try {
+            const rawCfg = localStorage.getItem(activeDbKey());
+            if (rawCfg) {
+                const dataCfg = JSON.parse(rawCfg);
+                if (dataCfg.config) config = dataCfg.config;
+                if (dataCfg.students) {
+                    students = dataCfg.students;
+                    if (loggedInStudent) {
+                        const freshSelf = students.find(x => x.regNo === loggedInStudent.regNo);
+                        if (freshSelf) loggedInStudent = freshSelf;
+                    }
+                }
+            }
+        } catch (e2) { /* keep in-memory config/students as-is */ }
+        if (loggedInStudent && typeof renderStudentDashboard === 'function') renderStudentDashboard();
+
         // Preserve any in-progress reply drafts so a live update doesn't wipe out what's being typed.
         const adminDraftEl = document.getElementById('td-admin-reply');
         const adminDraft = adminDraftEl ? adminDraftEl.value : '';
@@ -6767,7 +6794,27 @@
         document.getElementById('cam-overlay').style.display = 'none';
     }
 
-    window.onload = function() { migrateOldSharedDbIfNeeded(); loadLoginAttempts(); restoreSessionFromStorage(); setInterval(checkDemoExpiry, 60000); scheduleAutoInvalidate(); setInterval(checkForSaAccessRequest, 5000); setInterval(checkForStudentAccessRequest, 5000); checkLFAutoDispose(); setInterval(checkLFAutoDispose, 3600000); }
+    // Public pre-login screens (the Student login page's "Help & Support Center" button, its
+    // library name/branding, etc.) have no logged-in session yet, so `config` would otherwise
+    // stay at its blank initial value and Support Hours would always fall back to the hardcoded
+    // default — never whatever the Admin actually published. In the real deployment there is
+    // exactly one library's data in this browser's storage, so preload that library's config
+    // (display-only fields; no session/adminId is set) before the login page is shown.
+    function preloadPublicConfigIfSingleLibrary() {
+        try {
+            const dbKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.indexOf('Samarthak_DB_') === 0 && key !== 'Samarthak_DB_migrated_v1') dbKeys.push(key);
+            }
+            if (dbKeys.length === 1) {
+                const data = JSON.parse(localStorage.getItem(dbKeys[0]) || '{}');
+                if (data && data.config) config = data.config;
+            }
+        } catch (e) { /* keep the blank default config — pre-login screens just show generic defaults */ }
+    }
+
+    window.onload = function() { migrateOldSharedDbIfNeeded(); preloadPublicConfigIfSingleLibrary(); loadLoginAttempts(); restoreSessionFromStorage(); setInterval(checkDemoExpiry, 60000); scheduleAutoInvalidate(); setInterval(checkForSaAccessRequest, 5000); setInterval(checkForStudentAccessRequest, 5000); checkLFAutoDispose(); setInterval(checkLFAutoDispose, 3600000); }
 
     // Keep the admin/student session alive across a page refresh (within the same browser tab),
     // the same way the Super Admin Control Center already does. Runs once on load, after
@@ -7006,9 +7053,9 @@
         const validAdmin = findAdminAccount(id);
         if (validAdmin && validAdmin[1] === pass) {
             const demoStatus = getAdminDemoStatus(id);
-            if (demoStatus.isDemo && demoStatus.expired) {
+            if (demoStatus.isDemo && demoStatus.blocked) {
                 errDiv.style.display = 'block';
-                errDiv.innerText = "⏳ This demo account's access window has ended. Login is no longer available.";
+                errDiv.innerText = '⏳ ' + demoStatus.reason;
                 return;
             }
             if (loginAttempts[id]) delete loginAttempts[id];
@@ -7128,7 +7175,7 @@
         document.getElementById('stu-display-reg').innerText = "REGISTRATION: " + s.regNo;
         document.getElementById('stu-display-mobile').innerText = "📱 " + s.mobile;
         document.getElementById('stu-display-email').innerText = "✉ " + s.email;
-        document.getElementById('stu-display-seat').innerText = "No. " + s.seat;
+        document.getElementById('stu-display-seat').innerText = "No. " + seatLabel(s.seat);
         const liveShift = config.shifts.find(sh => sh.id === s.shift);
         const liveShiftDisplay = liveShift ? liveShift.name + (liveShift.start && liveShift.end ? ` (${liveShift.start}-${liveShift.end})` : '') : s.shiftName;
         document.getElementById('stu-display-shift').innerText = liveShiftDisplay;
@@ -7551,7 +7598,7 @@
         doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(15, 23, 42);
         doc.text(student.name.toUpperCase(), 14, 47);
         doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(71, 85, 105);
-        doc.text(`Reg: ${student.regNo}  |  Seat: ${student.seat}  |  Shift: ${student.shiftName}`, 14, 53);
+        doc.text(`Reg: ${student.regNo}  |  Seat: ${seatLabel(student.seat)}  |  Shift: ${student.shiftName}`, 14, 53);
 
         doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(37, 99, 235);
         doc.text(`Month: ${getFullMonthName(monthYear)}`, pageW - 14, 47, { align: "right" });
@@ -7731,7 +7778,7 @@
             doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(15, 23, 42);
             doc.text(student.name.toUpperCase(), 14, 47);
             doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(71, 85, 105);
-            doc.text('Reg: ' + student.regNo + '  |  Seat: ' + student.seat + '  |  Shift: ' + student.shiftName, 14, 53);
+            doc.text('Reg: ' + student.regNo + '  |  Seat: ' + seatLabel(student.seat) + '  |  Shift: ' + student.shiftName, 14, 53);
             doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(37, 99, 235);
             doc.text('Month: ' + getFullMonthName(monthYear), pageW - 14, 47, { align: "right" });
             doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(71, 85, 105);
@@ -8757,7 +8804,7 @@
         const doc = new jsPDF({ orientation: 'landscape' });
         doc.setFontSize(14); doc.text(`${config.libName || 'Library'} — Auto-Allocation Audit Log`, 14, 16);
         doc.setFontSize(9); doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
-        const rows = allocationLog.map(l => [new Date(l.timestamp).toLocaleString(), l.action, l.waitId || '-', l.studentName, l.mobile, String(l.seat), l.shiftName, l.trigger, l.result]);
+        const rows = allocationLog.map(l => [new Date(l.timestamp).toLocaleString(), l.action, l.waitId || '-', l.studentName, l.mobile, String(seatLabel(l.seat)), l.shiftName, l.trigger, l.result]);
         doc.autoTable({
             startY: 28,
             head: [['Timestamp','Action','Waiting ID','Student','Mobile','Seat','Shift','Trigger','Result']],
@@ -8895,7 +8942,7 @@
                 <div style="margin-top:4px; color:var(--primary); font-weight:800;">🎫 ${l.waitId || '-'}</div>
                 <div style="margin-top:4px; color:var(--grey);">
                     Student: <b style="color:#1e293b;">${l.studentName}</b> (${l.mobile}) &nbsp;|&nbsp;
-                    Seat: <b style="color:#1e293b;">${l.seat}</b> &nbsp;|&nbsp; Shift: ${l.shiftName}
+                    Seat: <b style="color:#1e293b;">${seatLabel(l.seat)}</b> &nbsp;|&nbsp; Shift: ${l.shiftName}
                 </div>
                 <div style="margin-top:4px; color:var(--grey);">Trigger: ${l.trigger} → <b style="color:#1e293b;">${l.result}</b></div>
             </div>`).join('');
@@ -9131,7 +9178,7 @@
 
         // ── BOOKING INFO BOX ──
         const bookRows = [
-            ["Seat Number",       String(currentSeat)],
+            ["Seat Number",       String(seatLabel(currentSeat))],
             ["Shift Plan",        currentShift],
             ["Registration Date", formatAppDate(data.date)]
         ];
@@ -11336,7 +11383,7 @@ function openWalletEkycCooldownModal() {
                     : ('Added by Super Admin' + (t.note ? (' — ' + t.note) : '')))
                 : (t.isSuperAdminCharge || t.chargeType
                     ? ((chargeLabels[t.chargeType] || 'Charge deducted by Super Admin') + (t.note ? (' — ' + t.note) : ''))
-                    : ('Seat ' + (t.seat != null ? t.seat : '—') + ' • ' + (t.shiftName || '') + (t.studentName ? (' — ' + t.studentName + (t.studentRegNo ? (' (' + t.studentRegNo + ')') : '')) : '')));
+                    : ('Seat ' + (t.seat != null ? seatLabel(t.seat) : '—') + ' • ' + (t.shiftName || '') + (t.studentName ? (' — ' + t.studentName + (t.studentRegNo ? (' (' + t.studentRegNo + ')') : '')) : '')));
             return `<div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px; background:#fff;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div style="font-size:0.68rem; color:var(--grey); font-weight:700;">${formatAppDate ? formatAppDate(t.date) : new Date(t.date).toLocaleDateString()}</div>
@@ -12382,6 +12429,11 @@ function openWalletEkycCooldownModal() {
         const match = findStudentByRegAcrossLibraries("REG"+regSuffix);
         if (!match) { document.getElementById('err-hc-reg').innerText='No student found with this registration number'; document.getElementById('err-hc-reg').style.display='block'; return; }
         loadFromLocal(match.adminId);
+        // The pre-login overlay has no library context until the student is verified above, so
+        // any support-hours text rendered at overlay-open time was always the generic fallback
+        // default — never this student's actual library. Re-render now that the correct
+        // library's config is loaded into memory.
+        renderSupportHoursBlock('student-support-hours-block', null, false);
         const found = match.student;
         hcVerifiedStudent = found;
         document.getElementById('hc-verified-name').innerText = '✓ ' + found.name;
