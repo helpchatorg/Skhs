@@ -6173,6 +6173,11 @@
     function loadFromLocal(adminId) {
         _activeAdminId = adminId || null;
         if (!_activeAdminId) return; // no library context yet (e.g. the login page)
+        // Remember this as "the" library for this browser/device, persistently (not just for
+        // this tab's session) — used to preload public-facing info like Support Hours on the
+        // login page, before anyone has logged in, since at that point we don't otherwise know
+        // which library's data to show.
+        try { localStorage.setItem('Samarthak_LastActiveAdminId', _activeAdminId); } catch (e) { /* ignore */ }
 
         const raw = localStorage.getItem(activeDbKey());
         if (raw) {
@@ -6802,6 +6807,20 @@
     // (display-only fields; no session/adminId is set) before the login page is shown.
     function preloadPublicConfigIfSingleLibrary() {
         try {
+            // Prefer the persistently-remembered last-active library for this device — this is
+            // correct even when this browser has leftover data from more than one admin ID
+            // (e.g. old test accounts), which the old "exactly one library" check would miss.
+            const lastId = localStorage.getItem('Samarthak_LastActiveAdminId');
+            if (lastId) {
+                const rawLast = localStorage.getItem('Samarthak_DB_' + lastId);
+                if (rawLast) {
+                    const dataLast = JSON.parse(rawLast);
+                    if (dataLast && dataLast.config) { config = dataLast.config; return; }
+                }
+            }
+            // Fallback for a device that has never completed a login yet (so nothing has been
+            // remembered as "last active"): if there's unambiguously only one library's data
+            // sitting in storage, it must be this one.
             const dbKeys = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -6814,7 +6833,19 @@
         } catch (e) { /* keep the blank default config — pre-login screens just show generic defaults */ }
     }
 
-    window.onload = function() { migrateOldSharedDbIfNeeded(); preloadPublicConfigIfSingleLibrary(); loadLoginAttempts(); restoreSessionFromStorage(); setInterval(checkDemoExpiry, 60000); scheduleAutoInvalidate(); setInterval(checkForSaAccessRequest, 5000); setInterval(checkForStudentAccessRequest, 5000); checkLFAutoDispose(); setInterval(checkLFAutoDispose, 3600000); }
+    // Force-logout an already-open Admin session the instant a demo account's access window
+    // ends (or, for a session somehow already active with no window ever granted, immediately)
+    // — this runs continuously so it doesn't require the admin to refresh the page first.
+    function checkAdminDemoExpiryLive() {
+        if (!_loggedInAdminId) return;
+        const demoStatusLive = getAdminDemoStatus(_loggedInAdminId);
+        if (demoStatusLive.isDemo && demoStatusLive.blocked) {
+            alert('⏳ ' + demoStatusLive.reason);
+            logoutAdmin();
+        }
+    }
+
+    window.onload = function() { migrateOldSharedDbIfNeeded(); preloadPublicConfigIfSingleLibrary(); loadLoginAttempts(); restoreSessionFromStorage(); setInterval(checkDemoExpiry, 60000); setInterval(checkAdminDemoExpiryLive, 20000); scheduleAutoInvalidate(); setInterval(checkForSaAccessRequest, 5000); setInterval(checkForStudentAccessRequest, 5000); checkLFAutoDispose(); setInterval(checkLFAutoDispose, 3600000); }
 
     // Keep the admin/student session alive across a page refresh (within the same browser tab),
     // the same way the Super Admin Control Center already does. Runs once on load, after
@@ -6846,6 +6877,19 @@
             const validAdmin = findAdminAccount(session.id);
             const status = getAdminStatus(session.id);
             if (!validAdmin || status.blocked || status.discontinued) { sessionStorage.removeItem('Samarthak_Session'); setTimeout(() => { document.getElementById('page-loader').classList.add('hide'); }, 800); return; }
+            // Re-check the demo-account access window on every page load/refresh too — not just
+            // at the moment of login — so an already-open admin session gets kicked back to the
+            // login screen the instant its window ends (or if it was never granted one at all).
+            const demoStatusRestore = getAdminDemoStatus(session.id);
+            if (demoStatusRestore.isDemo && demoStatusRestore.blocked) {
+                sessionStorage.removeItem('Samarthak_Session');
+                setTimeout(() => {
+                    document.getElementById('page-loader').classList.add('hide');
+                    const errDiv = document.getElementById('login-main-err');
+                    if (errDiv) { errDiv.style.display = 'block'; errDiv.innerText = '⏳ ' + demoStatusRestore.reason; }
+                }, 800);
+                return;
+            }
             loadFromLocal(session.id);
             _loggedInAdminId = session.id;
             _isImpersonationSession = false;
@@ -8390,7 +8434,7 @@
                 if (old) { existingFeeHistory = old.feeHistory || []; originalDate = old.date; regNo = old.regNo; finalMode = old.mode; finalApp = old.payApp; finalTxn = old.txnId; }
             } else {
                 const currentMonth = new Date().toISOString().slice(0,7);
-                existingFeeHistory = [{ month:currentMonth, entryDate:new Date().toISOString(), amount:sInfo.price, mode:method, payApp:method==="Online"?pApp:(method==="Wallet"?"Wallet":"Cash"), txnId:method==="Online"?tId:(method==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime:selectedSeat, shiftAtTime:sInfo.name }];
+                existingFeeHistory = [{ month:currentMonth, entryDate:new Date().toISOString(), amount:sInfo.price, mode:method, payApp:method==="Online"?pApp:(method==="Wallet"?"Wallet":"Cash"), txnId:method==="Online"?tId:(method==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime:selectedSeat, seatLabelAtTime:seatLabel(selectedSeat), shiftAtTime:sInfo.name }];
             }
             const studentName = document.getElementById('name').value;
             const data = { id:editId||regNo, regNo, date:originalDate, name:studentName, fname:document.getElementById('fname').value, mobile:document.getElementById('mobile').value, email:document.getElementById('email').value, dob:document.getElementById('dob').value, shift:sid, shiftName:sInfo.name, mode:finalMode, payApp:finalApp, txnId:finalTxn, seat:selectedSeat, amount:sInfo.price, photo:photoData, feeHistory:existingFeeHistory };
@@ -8579,7 +8623,7 @@
                 mode: entry.mode, payApp: entry.payApp, txnId: entry.txnId,
                 seat: seatNo, amount: sInfo ? sInfo.price : entry.amount,
                 photo: entry.photo,
-                feeHistory: [{ month:new Date().toISOString().slice(0,7), entryDate:new Date().toISOString(), amount: sInfo ? sInfo.price : entry.amount, mode:entry.mode, payApp:entry.payApp, txnId:entry.txnId, status:"PAID", seatAtTime:seatNo, shiftAtTime: sInfo ? sInfo.name : entry.shiftName }],
+                feeHistory: [{ month:new Date().toISOString().slice(0,7), entryDate:new Date().toISOString(), amount: sInfo ? sInfo.price : entry.amount, mode:entry.mode, payApp:entry.payApp, txnId:entry.txnId, status:"PAID", seatAtTime:seatNo, seatLabelAtTime:seatLabel(seatNo), shiftAtTime: sInfo ? sInfo.name : entry.shiftName }],
                 allocatedFromWaitlist: true
             };
             if (!db[entry.shift]) db[entry.shift] = [];
@@ -9032,7 +9076,7 @@
             mode: method,
             payApp: method==="Online" ? app : "Cash",
             txnId: method==="Online" ? txn : "N/A",
-            status: "PAID", seatAtTime: s.seat, shiftAtTime: s.shiftName
+            status: "PAID", seatAtTime: s.seat, seatLabelAtTime: seatLabel(s.seat), shiftAtTime: s.shiftName
         };
         // Update the student record
         const idx = students.findIndex(x => x.id === currentDemoConfirmId);
@@ -9076,21 +9120,33 @@
 
         let d = new Date(data.date);
         let currentApp = data.payApp, currentTxn = data.txnId, currentMode = data.mode;
-        let currentAmount = data.amount, currentSeat = data.seat, currentShift = data.shiftName;
+        let currentAmount = data.amount, currentShift = data.shiftName;
+        // The seat *label* shown on a receipt must reflect the suffix scheme that was in effect
+        // when that fee was actually paid — not whatever the library's seat suffixes look like
+        // today. Default to today's label for the student's current seat (used only when there's
+        // no per-month record at all, i.e. nothing "historical" to show instead); as soon as a
+        // specific month's fee entry is in play, its own snapshotted label always wins.
+        let currentSeatLabel = seatLabel(data.seat);
         let paymentMonth = getFullMonthName(new Date(data.date).toISOString().slice(0,7));
         if (feeEntryIndex !== -1 && data.feeHistory && data.feeHistory[feeEntryIndex]) {
             const sf = data.feeHistory[feeEntryIndex];
             d = new Date(sf.month+"-01"); d.setMonth(d.getMonth()+1); d.setDate(new Date(data.date).getDate());
             currentApp = sf.payApp; currentTxn = sf.txnId; currentMode = sf.mode;
             currentAmount = sf.amount; paymentMonth = getFullMonthName(sf.month);
-            if (sf.seatAtTime) currentSeat = sf.seatAtTime;
+            // Prefer the label snapshotted at the time this fee was paid. Older records made
+            // before this snapshot existed only have the bare seat number — show that as-is
+            // (never re-run through today's seatLabel(), which would incorrectly stamp a suffix
+            // that didn't exist yet onto an old receipt).
+            if (sf.seatLabelAtTime) currentSeatLabel = sf.seatLabelAtTime;
+            else if (sf.seatAtTime) currentSeatLabel = String(sf.seatAtTime);
             if (sf.shiftAtTime) currentShift = sf.shiftAtTime;
         } else if (data.feeHistory && data.feeHistory.length > 0) {
             const ff = data.feeHistory[0];
             d = new Date(ff.month+"-01"); d.setMonth(d.getMonth()+1); d.setDate(new Date(data.date).getDate());
             currentApp = ff.payApp; currentTxn = ff.txnId; currentMode = ff.mode;
             currentAmount = ff.amount; paymentMonth = getFullMonthName(ff.month);
-            if (ff.seatAtTime) currentSeat = ff.seatAtTime;
+            if (ff.seatLabelAtTime) currentSeatLabel = ff.seatLabelAtTime;
+            else if (ff.seatAtTime) currentSeatLabel = String(ff.seatAtTime);
             if (ff.shiftAtTime) currentShift = ff.shiftAtTime;
         } else { d.setDate(d.getDate()+30); }
         const dueDateStr = formatAppDate(d);
@@ -9178,7 +9234,7 @@
 
         // ── BOOKING INFO BOX ──
         const bookRows = [
-            ["Seat Number",       String(seatLabel(currentSeat))],
+            ["Seat Number",       String(currentSeatLabel)],
             ["Shift Plan",        currentShift],
             ["Registration Date", formatAppDate(data.date)]
         ];
@@ -11802,7 +11858,16 @@ function openWalletEkycCooldownModal() {
         const finishSaveNewMonthlyFee = () => {
             let walletTxnId = null;
             if (mode === "Wallet" && editIndex === "") walletTxnId = generateWalletTxnId();
-            const feeData = { month:monthValue, entryDate:new Date().toISOString(), amount, mode, payApp:mode==="Online"?app:(mode==="Wallet"?"Wallet":"Cash"), txnId:mode==="Online"?txn:(mode==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime:s.seat, shiftAtTime:s.shiftName };
+            // When editing an existing month's fee entry, keep that entry's own frozen
+            // seat/shift snapshot exactly as it was — only a brand-new entry should snapshot
+            // today's seat/label. Editing (e.g. just fixing the transaction ID) must never
+            // retroactively re-stamp an old month's receipt with a seat suffix that didn't
+            // exist back when that fee was actually paid.
+            const existingEntry = editIndex !== "" ? s.feeHistory[editIndex] : null;
+            const seatAtTime = existingEntry ? existingEntry.seatAtTime : s.seat;
+            const seatLabelAtTime = existingEntry ? (existingEntry.seatLabelAtTime || String(existingEntry.seatAtTime)) : seatLabel(s.seat);
+            const shiftAtTime = existingEntry ? existingEntry.shiftAtTime : s.shiftName;
+            const feeData = { month:monthValue, entryDate:new Date().toISOString(), amount, mode, payApp:mode==="Online"?app:(mode==="Wallet"?"Wallet":"Cash"), txnId:mode==="Online"?txn:(mode==="Wallet"?walletTxnId:"N/A"), status:"PAID", seatAtTime, seatLabelAtTime, shiftAtTime };
             if (editIndex !== "") { s.feeHistory[editIndex] = feeData; resetFeeForm(); } else s.feeHistory.push(feeData);
             if (mode === "Wallet" && walletTxnId) {
                 wallet.balance = (wallet.balance || 0) - parseInt(amount || 0);
@@ -12400,6 +12465,12 @@ function openWalletEkycCooldownModal() {
     }
 
     function openHelpCenter() {
+        // Re-pull the latest published config right now, not just at page load — this button
+        // lives on the login screen, which the person may have had open in this tab from before
+        // the Admin published a Support Hours change, so `config` in memory could be stale.
+        // Never do this while an actual session (student or admin) is active, though — that
+        // would clobber real in-progress data with a possibly-different library's config.
+        if (!_activeAdminId) preloadPublicConfigIfSingleLibrary();
         renderSupportHoursBlock('student-support-hours-block', null, false);
         document.getElementById('hc-step1').style.display='block';
         document.getElementById('hc-step2').style.display='none';
@@ -14232,6 +14303,16 @@ function openWalletEkycCooldownModal() {
         const hasCustomPassword = !!customPasswords[id];
         const effectivePass = hasCustomPassword ? customPasswords[id] : (validAdmin ? validAdmin[1] : null);
         if (validAdmin && effectivePass === pass) {
+            // Demo accounts (marked so from Manage Admin And Student > Admin Accounts > Add New
+            // Admin, in the Super Admin dashboard) are blocked by default — login only works once
+            // the Super Admin explicitly grants a time window from that admin's ⚙️ Setting >
+            // Demo Account Timing, and stops working again the instant that window ends.
+            const demoStatus = getAdminDemoStatus(id);
+            if (demoStatus.isDemo && demoStatus.blocked) {
+                errDiv.style.display = 'block';
+                errDiv.innerText = '⏳ ' + demoStatus.reason;
+                return;
+            }
             if (loginAttempts[id]) delete loginAttempts[id];
             saveLoginAttempts();
             // Load THIS admin's own library — its own config, students, tickets, everything.
@@ -14296,6 +14377,13 @@ function openWalletEkycCooldownModal() {
         const validAdmin = findAdminAccount(grant.adminId);
         const status = getAdminStatus(grant.adminId);
         if (!validAdmin || status.blocked || status.discontinued) {
+            localStorage.removeItem(SA_IMPERSONATE_KEY);
+            return false;
+        }
+        // Even a Super-Admin-issued temporary access grant must respect a demo account's access
+        // window — "blocked, no matter what path leads to it" applies here too.
+        const demoStatusGrant = getAdminDemoStatus(grant.adminId);
+        if (demoStatusGrant.isDemo && demoStatusGrant.blocked) {
             localStorage.removeItem(SA_IMPERSONATE_KEY);
             return false;
         }
